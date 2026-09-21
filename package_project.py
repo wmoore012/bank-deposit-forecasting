@@ -5,7 +5,7 @@ import nbformat
 from nbconvert import HTMLExporter
 ROOT=Path(__file__).resolve().parent
 COMMON=['VALIDATION.md','README.md','MASTERCLASS_README.md','PROFESSOR_README.md','pyproject.toml','uv.lock',
-        'build_masterclass.py','build_professor_submission.py','execute_masterclass.py',
+        'build_masterclass.py','benchmark_timesfm.py','benchmark_chronos.py','finetune_foundation.py','prepare_finetune_data.py','build_professor_submission.py','execute_masterclass.py',
         'download_fdic.py','download_supplement.py','package_project.py','Assign1.ipynb']
 notebooks=[ROOT/f'FDIC_Deep_Learning_{edition}.ipynb' for edition in ['Masterclass','Submission']]
 for notebook in notebooks:

@@ -1,0 +1,16 @@
+{
+  "model": "TimesFM 3.0",
+  "package_version": "3.0.2",
+  "checkpoint": "google/timesfm-3.0-pytorch",
+  "checkpoint_revision": "43046b85ec22d584a13f8098c2ed39c889e129c2",
+  "mode": "zero-shot univariate; no covariates or holdout tuning",
+  "input": "log of each bank's consecutive positive quarterly DEPDOM reports through predictor date",
+  "output": "one-step predicted log deposit level, converted to ordinary growth",
+  "rows": 13532,
+  "context_min": 2,
+  "context_median": 46.0,
+  "context_max": 47,
+  "MAE (pp)": 6.1713450649406125,
+  "RMSE (pp)": 294.5405905965357,
+  "license": "TimesFM 3.0 pretrained weights: noncommercial, nonproduction research use"
+}

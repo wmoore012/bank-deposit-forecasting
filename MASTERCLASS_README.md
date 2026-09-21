@@ -79,3 +79,21 @@ to EMIGRANT BANK on the same certificate; reported deposits grow by roughly
 retains this outcome and flags the unresolved institutional change. It explains
 why squared loss can be dominated by one observation; it does not justify
 silently deleting a difficult example or tuning to historical performance.
+
+## TimesFM extension
+
+After the core conclusion, the notebook compares five-feature models with a
+zero-shot TimesFM forecast of each bank's log deposit history. Saved full-holdout
+predictions keep notebook execution independent of model downloads. To regenerate
+them on Apple Silicon, run `uv run python benchmark_timesfm.py --revision
+43046b85ec22d584a13f8098c2ed39c889e129c2` on one line. Google TimesFM 3.0 weights
+are restricted to noncommercial, nonproduction use. Results describe this
+retrospective benchmark and do not establish operational savings.
+
+The final bonus compares unchanged and fine-tuned forecasting heads. Reproduce with
+`uv run python prepare_finetune_data.py`, then `uv run python finetune_foundation.py chronos`
+and `uv run python finetune_foundation.py timesfm`. Training uses earlier outcomes;
+2023 validation selects checkpoints. The chapter explains every model's training
+status, the fixed 256-update budget, frozen backbones, and why validation gains
+can fail to transfer. Saved predictions allow normal notebook execution without
+retraining. Checkpoints and split exports stay local in ignored `.finetune/`.

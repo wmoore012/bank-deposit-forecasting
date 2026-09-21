@@ -1,0 +1,3 @@
+Model,Chosen step,Unique training rows seen,Trainable weights,Status
+TimesFM,256,8020,737856,Head adapted
+Chronos-Bolt,256,8020,2526336,Head adapted

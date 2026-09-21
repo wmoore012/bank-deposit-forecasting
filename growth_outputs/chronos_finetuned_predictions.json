@@ -1,0 +1,38 @@
+{
+  "model": "chronos",
+  "checkpoint_revision": "772f3d25d38aec6d914c8949dab4462e2d46f5d8",
+  "seed": 42,
+  "steps": 256,
+  "batch_size": 32,
+  "learning_rate": 1e-05,
+  "trainable_parameters": 2526336,
+  "total_parameters": 47718016,
+  "training_rows": 214425,
+  "training_unique_rows_seen": 8020,
+  "train_last_outcome": "2022-12-31",
+  "validation_last_outcome": "2023-12-31",
+  "selection_metric": "2023 mean absolute log-balance error",
+  "selected_step": 256,
+  "validation": [
+    {
+      "step": 0,
+      "validation_log_MAE": 0.041445696820960456
+    },
+    {
+      "step": 128,
+      "validation_log_MAE": 0.04365494855483936
+    },
+    {
+      "step": 256,
+      "validation_log_MAE": 0.04134005822593531
+    }
+  ],
+  "candidate_weights_changed": true,
+  "selected_weights_changed": true,
+  "adaptation": "forecast head only; frozen backbone; 256 sampled updates, not a full epoch",
+  "pretrained_overlap": "unknown; no claim of globally leakage-free pretraining",
+  "selection_sha256": "78bb0b877252b056f9c6f9649be72b01a990f8f5ce4a7dabf13835f3f42515ee",
+  "rows": 13532,
+  "MAE (pp)": 3.999658918204125,
+  "RMSE (pp)": 7.417518133034867
+}

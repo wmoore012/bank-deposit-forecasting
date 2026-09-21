@@ -1,0 +1,38 @@
+{
+  "model": "timesfm",
+  "checkpoint_revision": "43046b85ec22d584a13f8098c2ed39c889e129c2",
+  "seed": 42,
+  "steps": 256,
+  "batch_size": 32,
+  "learning_rate": 1e-05,
+  "trainable_parameters": 737856,
+  "total_parameters": 330710976,
+  "training_rows": 214425,
+  "training_unique_rows_seen": 8020,
+  "train_last_outcome": "2022-12-31",
+  "validation_last_outcome": "2023-12-31",
+  "selection_metric": "2023 mean absolute log-balance error",
+  "selected_step": 256,
+  "validation": [
+    {
+      "step": 0,
+      "validation_log_MAE": 0.04058346059671523
+    },
+    {
+      "step": 128,
+      "validation_log_MAE": 0.040535583271359164
+    },
+    {
+      "step": 256,
+      "validation_log_MAE": 0.04015846598505095
+    }
+  ],
+  "candidate_weights_changed": true,
+  "selected_weights_changed": true,
+  "adaptation": "forecast head only; frozen backbone; 256 sampled updates, not a full epoch",
+  "pretrained_overlap": "unknown; no claim of globally leakage-free pretraining",
+  "selection_sha256": "e14a79a8ab784b4b9066a7afba7b1cdb3517fb22c36148b072704a2bc53166fa",
+  "rows": 13532,
+  "MAE (pp)": 6.140479120302771,
+  "RMSE (pp)": 296.33460872495834
+}

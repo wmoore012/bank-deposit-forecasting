@@ -2215,13 +2215,8 @@ capacity, followed by a count of how many selected banks actually had weak
 growth. Even a useful ranking is a lead for an analyst, not evidence of a
 problem at any particular bank.
 
-[TimesFM](https://github.com/google-research/timesfm) is a possible next challenger,
-but it has **no score in this experiment**. It can read a bank's sequence of
-quarterly balances, which might capture time patterns the five-input MLP misses.
-That is a testable idea, not a measured improvement. Google's current 3.0
-pretrained weights are research-only under a noncommercial license; a fair
-comparison also needs the same prediction dates, available history, and a
-later untouched evaluation period.
+The masterclass tests a pretrained sequence model after the core conclusion.
+That extension uses different inputs and does not replace this five-feature experiment.
 
 On the diagonal, prediction equals outcome. Above it, the model predicts too much growth.
 Below it, the model predicts too little. Both axes use the same units and scale.
@@ -2307,22 +2302,6 @@ for column_number, metric_name in enumerate(
             row=1,
             col=column_number,
         )
-    # Keep the proposed challenger on the same scorecard without drawing a
-    # fictitious point or treating an untested method as a winner.
-    fig.add_trace(
-        go.Scatter(
-            x=[metric_values.min()],
-            y=['TimesFM'],
-            mode='text',
-            text=['Not tested'],
-            textposition='middle right',
-            textfont={'color': '#65717D', 'size': 13},
-            showlegend=False,
-            hovertemplate='TimesFM: no historical score in this experiment<extra></extra>',
-        ),
-        row=1,
-        col=column_number,
-    )
     fig.update_xaxes(
         title='Percentage points; lower is better',
         range=[max(0, metric_values.min() - .25), metric_values.max() + .9],
@@ -2331,7 +2310,7 @@ for column_number, metric_name in enumerate(
     )
     fig.update_yaxes(
         categoryorder='array',
-        categoryarray=list(reversed(MODEL_ORDER + ['TimesFM'])),
+        categoryarray=list(reversed(MODEL_ORDER)),
         row=1,
         col=column_number,
     )
@@ -2340,7 +2319,7 @@ chart(
     fig,
     'comparison',
     'Which forecast has the smallest error?',
-    'Zero growth has the lowest MAE; the MLP has the lowest RMSE. TimesFM is untested.',
+    'Zero growth has the lowest MAE; the MLP has the lowest RMSE among the four core models.',
     height=500,
 )
 
@@ -2935,15 +2914,15 @@ as the transparent feature model, and treat the MLP as an unproven research cand
 for mergers and institutional changes, then evaluate all three on a later untouched period.
 
 **Should we try something else?** Yes. Anomaly detection may help prioritize reports
-that look unusual *now*; it has not been tested here. TimesFM may make better use of
-bank histories; it also has no score here. Neither possibility changes the measured
+that look unusual *now*; it has not been tested here. The masterclass separately evaluates TimesFM using
+bank histories after this core conclusion. That extension does not change the measured
 MAE, RMSE, or review precision of the four evaluated methods.
 
 **Why can zero growth win MAE while the MLP wins RMSE?** They reward different behavior.
 An error of 10 percentage points contributes 10 to absolute error and 100 to squared error.
 Large changes therefore pull an MSE-trained model harder. The prediction that minimizes expected
 absolute error is a conditional median; squared error targets a conditional mean.
-A network trained with MSE is not directly optimizing MAE. That explains the possible tradeoff. The score table shows whether the network learned a useful conditional mean here.
+Our network minimizes MSE in log-growth space. After conversion to ordinary growth, that does not directly minimize percentage-point RMSE or MAE. The observed error distribution, rather than the training objective alone, establishes the tradeoff here.
 
 The validation audit also exposes a same-certificate name change from PLUS INTERNATIONAL BANK
 to EMIGRANT BANK with a huge balance jump. Institutional restructuring can dominate quarterly
@@ -2959,8 +2938,9 @@ conclusion = (
     f'growth ({mae["MLP"]:.3f} versus {mae["Zero growth"]:.3f} pp MAE). '
     f'It had the lowest RMSE ({rmse["MLP"]:.3f} pp), and its 99th-percentile '
     'absolute error was below zero growth. Its small edge over Ridge does not '
-    'establish dependable nonlinear value. TimesFM and anomaly detection were '
-    'not evaluated. These are three reused 2024 quarters. '
+    'establish dependable nonlinear value. Anomaly detection was not evaluated; '
+    'the masterclass evaluates TimesFM separately after this core conclusion. '
+    'These are three reused 2024 quarters. '
     'All four comparisons: '
     + '; '.join(
         f'{model}: MAE {mae[model]:.3f}, RMSE {rmse[model]:.3f} pp'
@@ -3055,42 +3035,104 @@ The API often supplies zeros even below the reporting threshold. A populated API
 is not proof that the bank filed that regulatory item, and a zero is not proof of zero exposure.
 Do not splice the fields or impute either into the model without a verified historical mapping.
 ''',r'''
-# Inspect both uninsured-deposit fields without treating zeros as verified filings.
-coverage_source=long_audit.copy()
-coverage_source['Asset group']=np.where(coverage_source.ASSET.ge(1_000_000),'At least USD 1bn','Below USD 1bn')
-uninsured=[]
-for field in ['DEPUNA','DEPUNINS']:
-    for (quarter,size,form),part in coverage_source.groupby(['REPDTE','Asset group','CALLFORM'],dropna=False):
-        uninsured.append({'Quarter':quarter,'Asset group':size,'Call form':str(form),'Field':field,
-            'Rows':len(part),'API populated':part[field].notna().sum(),'Zero values':part[field].eq(0).sum()})
+# EXEMPLAR: analytical-question
+question_card(
+    title='Does a value in a downloaded column prove the bank reported it?',
+    theme=theme,
+    body='No. An API is the FDIC service our code asks for records. A field is a named column in its response. DEPUNA and DEPUNINS are two uninsured-deposit-related columns; their historical mapping still needs verification.',
+    kicker='Read the source before interpreting the number',
+)
+
+# %% NOTEBOOK CELL
+# EXEMPLAR: formula-card
+wm_formula_card(
+    title='A blank, a zero, and a positive number answer different questions',
+    theme=theme,
+    items=[
+        {'label': 'Coverage', 'fallback': 'nonmissing records / all records'},
+        {'label': 'Zeros among populated records', 'fallback': 'zero records / nonmissing records'},
+        {'label': 'Illustration only', 'fallback': '100 reports: 70 blank + 20 zero + 10 nonzero → 30% coverage; 66.7% of populated values are zero'},
+    ],
+)
+
+# %% NOTEBOOK CELL
+# Inspect source values as received. Current assets create descriptive groups.
+coverage_source = long_audit.copy()
+coverage_source['Asset group'] = np.where(
+    coverage_source.ASSET.ge(1_000_000), 'At least USD 1bn', 'Below USD 1bn',
+)
+uninsured = []
+for field in ['DEPUNA', 'DEPUNINS']:
+    groups = coverage_source.groupby(['REPDTE', 'Asset group', 'CALLFORM'], dropna=False)
+    for (quarter, size, form), part in groups:
+        uninsured.append({
+            'Quarter': quarter, 'Asset group': size, 'Call form': str(form),
+            'Field': field, 'Rows': len(part),
+            'API populated': part[field].notna().sum(),
+            'Zero values': part[field].eq(0).sum(),
+        })
 uninsured = pd.DataFrame(uninsured)
 uninsured['Coverage'] = uninsured['API populated'] / uninsured['Rows']
-uninsured['Zero share']=uninsured['Zero values']/uninsured.Rows
-uninsured.to_csv(OUT/'uninsured_coverage.csv',index=False)
-aggregate=uninsured.groupby(['Quarter','Asset group','Field'],as_index=False)[['Rows','API populated','Zero values']].sum()
-aggregate['Coverage']=aggregate['API populated']/aggregate.Rows
-aggregate['Date']=pd.to_datetime(aggregate.Quarter.astype(str))
-aggregate['Zero share']=aggregate['Zero values']/aggregate.Rows
-latest_uninsured = ordered_rows(
-    uninsured.loc[uninsured.Quarter.eq(uninsured.Quarter.max())],
-    ['Asset group', 'Field', 'Call form'],
-    category_orders={
-        'Asset group': ['At least USD 1bn', 'Below USD 1bn'],
-        'Field': ['DEPUNA', 'DEPUNINS'],
-    },
+uninsured['Zero share'] = uninsured['Zero values'] / uninsured['API populated'].replace(0, np.nan)
+uninsured.to_csv(OUT / 'uninsured_coverage.csv', index=False)
+
+# %% NOTEBOOK CELL
+# Each report belongs to exactly one state. This exposes what a coverage dip means.
+aggregate = uninsured.groupby(
+    ['Quarter', 'Asset group', 'Field'], as_index=False,
+)[['Rows', 'API populated', 'Zero values']].sum()
+aggregate['Date'] = pd.to_datetime(aggregate['Quarter'].astype(str))
+aggregate['Coverage'] = aggregate['API populated'] / aggregate['Rows']
+aggregate['Zero share'] = aggregate['Zero values'] / aggregate['API populated'].replace(0, np.nan)
+aggregate['Missing'] = aggregate['Rows'] - aggregate['API populated']
+aggregate['Zero'] = aggregate['Zero values']
+aggregate['Nonzero'] = aggregate['API populated'] - aggregate['Zero values']
+assert aggregate[['Missing', 'Zero', 'Nonzero']].sum(axis=1).eq(aggregate['Rows']).all()
+aggregate.to_csv(OUT / 'uninsured_states.csv', index=False)
+
+# %% NOTEBOOK CELL
+# Separate panels eliminate the four-line legend puzzle.
+fig = make_subplots(
+    rows=2, cols=2, shared_xaxes=True, shared_yaxes=True,
+    subplot_titles=['DEPUNA · Below USD 1bn', 'DEPUNINS · Below USD 1bn',
+                    'DEPUNA · At least USD 1bn', 'DEPUNINS · At least USD 1bn'],
+    vertical_spacing=.16,
 )
-table(latest_uninsured,'Latest quarter: coverage by size and reporting form',{'Coverage':'{:.1%}'})
-fig=px.line(aggregate,x='Date',y='Coverage',color='Asset group',line_dash='Field',
-    color_discrete_map={'At least USD 1bn':'#007F89','Below USD 1bn':'#AF7721'})
-fig.update_yaxes(tickformat='.0%',range=[0,1.05])
-chart(fig,'uninsured','Which API fields contain a value?','2010–2024; fields inspected separately; current assets define descriptive groups')
-fig=px.line(aggregate,x='Date',y='Zero share',color='Asset group',line_dash='Field',
-    color_discrete_map={'At least USD 1bn':'#007F89','Below USD 1bn':'#AF7721'})
-fig.update_yaxes(tickformat='.0%',range=[0,1.05])
-chart(fig,'uninsured_zeros','How often does a populated field contain zero?',
-    'Zeros are ambiguous; field mappings and reporting eligibility need verification')
-takeaway('Keep uninsured deposits out of the core model',
-    'The API returns values for every row in some groups where regulatory reporting is optional. Many of those values are zero. Until the historical field mapping and filing eligibility are verified, keep these fields outside the five-feature comparison.')
+for row, size in enumerate(['Below USD 1bn', 'At least USD 1bn'], start=1):
+    for col, field in enumerate(['DEPUNA', 'DEPUNINS'], start=1):
+        part = aggregate.loc[aggregate['Asset group'].eq(size) & aggregate['Field'].eq(field)].sort_values('Date')
+        for state, color in [('Nonzero', '#007F89'), ('Zero', '#AF7721'), ('Missing', '#D8DDE3')]:
+            fig.add_trace(go.Scatter(
+                x=part['Date'], y=part[state] / part['Rows'], name=state,
+                stackgroup=f'{row}-{col}', mode='lines',
+                line=dict(width=.5, color=color), fillcolor=color,
+                legendgroup=state, showlegend=(row == 1 and col == 1),
+                customdata=np.column_stack([part[state], part['Rows']]),
+                hovertemplate=state + ': %{y:.1%}<br>%{customdata[0]:,} of %{customdata[1]:,} reports<extra></extra>',
+            ), row=row, col=col)
+        fig.update_yaxes(range=[0, 1], tickformat='.0%', row=row, col=col)
+chart(fig, 'uninsured_states', 'Did values disappear, or become zero?',
+      'Every panel sums to 100% of reports. Gray = missing; amber = stored zero; teal = nonzero.', height=630)
+
+# %% NOTEBOOK CELL
+# Read the deepest dip directly from the data instead of guessing from the line.
+small = aggregate.loc[aggregate['Asset group'].eq('Below USD 1bn') & aggregate['Field'].eq('DEPUNA')]
+dip = small.loc[small['Coverage'].idxmin()]
+takeaway(
+    'The dip describes the downloaded column, not disappearing deposits',
+    f'At the lowest small-bank DEPUNA coverage in {dip.Date:%b %Y}, '
+    f'{dip.Coverage:.1%} of reports contain a value and {dip["Zero share"]:.1%} '
+    'of those populated values are zero. The earlier chart divided zero counts by all reports; '
+    'that shared denominator made its shape resemble coverage. A return to 100% coverage can consist mostly of zeros.',
+)
+wm_counterintuitive_card(
+    title='Could we fill the blanks and use this as a risk signal?', theme=theme,
+    why_misread='A complete numeric column looks ready for a model.',
+    ordinary_process='Reporting eligibility, field mappings, and source-system conventions can change which cells are blank or zero. These charts alone do not identify the cause of the 2017–2019 change.',
+    conclusion_boundary='Keep the original values. Verify historical definitions and filing eligibility before adding either column. Current asset groups do not reconstruct regulatory eligibility, and missingness is not evidence of bank distress.',
+    kicker='Source quality determines feature quality', chip_text='CHECK',
+)
+
 ''',advanced=True)
 section('Appendix · Keep the useful questions from Experiment 0', '''
 The [original masterclass](experiments/experiment_0/FDIC_Deep_Learning_Masterclass.ipynb) preserves the complete
@@ -3114,6 +3156,347 @@ dots for close model errors, lines for quarters and optimization, and a scatter 
 Maps and pies add no evidence to this question. Classification graphics stay with the classification experiment.
 The lower-triangle correlation heatmap describes overlap among the five fixed inputs. Feature selection was frozen before the holdout evaluation.
 ''',advanced=True)
+
+
+def timesfm_extension():
+    """A measured sequence-model extension after the core assignment concludes."""
+    prose = r'''**Can a bank's own history improve the next forecast?** The full TimesFM
+benchmark did worse on both aggregate errors. Before explaining the result,
+consider the different evidence each model receives:
+
+- **Ridge / MLP:** five financial features → predicted log growth.
+- **TimesFM:** consecutive historical log deposit balances → predicted log balance.
+
+We compare the same 13,532 bank-quarters and ordinary growth outcome. This compares
+complete approaches with different inputs and pretraining, not architecture alone.
+TimesFM uses a median-quantile point forecast. If its predicted log balance is
+<code>ẑ</code>, predicted log growth is <code>ẑ − ln(Dₜ)</code> and ordinary percentage
+growth is <code>100 × [exp(ẑ − ln(Dₜ)) − 1]</code>.
+
+The eight-row smoke test established that inference runs. Only the full holdout
+below supports a comparison. The saved forecast artifact is generated with
+`uv run python benchmark_timesfm.py`, using the public
+`from timesfm3.mlx import TimesFM3Forecaster` API and a recorded checkpoint revision.
+Notebook execution reads this artifact so students need not download the model.
+
+**What could go wrong with a short history?** TimesFM 3.0 processes numeric patches
+(32 input observations per patch); histories here range from 2 to 47 quarters.
+Short histories are retained. We do not exclude a difficult bank after seeing its error.
+The error audit below identifies what happened; history length as its cause remains
+a hypothesis. A future minimum-history rule needs validation data and new evaluation.
+
+This is a retrospective zero-shot research benchmark. Input sequences end at each
+predictor date, but a 2026 checkpoint was not available in 2024. Pretraining overlap
+with these records has not been independently ruled out. The checkpoint's current
+noncommercial, nonproduction license also prevents treating it as a deployment recommendation.
+[Official implementation](https://github.com/google-research/timesfm) ·
+[Checkpoint and license](https://huggingface.co/google/timesfm-3.0-pytorch).
+
+The second benchmark uses [Amazon Chronos-Bolt Small](https://huggingface.co/amazon/chronos-bolt-small),
+a pretrained numerical forecasting model, not a chat LLM. Run `uv run python benchmark_chronos.py`
+to reproduce its saved forecasts. This checkpoint also postdates the evaluated quarters; pretraining
+overlap has not been independently ruled out. These initial benchmarks use unchanged weights. The next bonus section tests head fine-tuning.
+'''
+    source = r'''
+# EXEMPLAR: bounded-takeaway
+# EXEMPLAR: analytical-question
+question_card(
+    title='Did we train TimesFM on these banks?', theme=theme,
+    body='For this first benchmark, no. Its authors pretrained its weights; we loaded them and asked for forecasts. Passing a bank history into the model is inference. The next section then updates forecasting-head weights using training examples and a loss.',
+    kicker='Pretraining → optional fine-tuning → inference',
+)
+wm_counterintuitive_card(
+    title='Does a bad forecast prove the model never saw this pattern?', theme=theme,
+    why_misread='A huge miss makes unfamiliar data sound like the obvious explanation.',
+    ordinary_process='Short histories, balance jumps, an unsuitable input representation, or poor transfer can all produce bad forecasts. A model can also fail on a pattern resembling its pretraining data.',
+    conclusion_boundary='We do not know whether similar bank patterns were in pretraining. We measured a failure of this frozen zero-shot configuration; we have not established its cause.',
+    kicker='Observation versus explanation', chip_text='CHECK',
+)
+
+# %% NOTEBOOK CELL
+# Reconcile saved sequence forecasts to the exact core evaluation rows.
+sequence = pd.read_csv(ROOT / 'growth_outputs/timesfm_zero_shot_predictions.csv')
+reference = pd.read_csv(ROOT / 'growth_outputs/submission/predictions.csv')
+joined = reference.merge(sequence, on=['CERT', 'date', 'DEPDOM', 'target_date'],
+                         validate='one_to_one', how='outer', indicator=True)
+assert joined['_merge'].eq('both').all() and len(joined) == len(test)
+sequence_errors = 100 * (joined['TimesFM'] - joined['growth'])
+sequence_scores = pd.DataFrame([{
+    'Model': 'TimesFM',
+    'MAE (pp)': np.abs(sequence_errors).mean(),
+    'RMSE (pp)': np.sqrt(np.square(sequence_errors).mean()),
+}])
+comparison = pd.concat([metrics, sequence_scores], ignore_index=True)
+comparison.to_csv(OUT / 'timesfm_comparison.csv', index=False)
+
+# %% NOTEBOOK CELL
+takeaway('TimesFM did not improve either aggregate error',
+         f'TimesFM MAE is {sequence_scores.iloc[0]["MAE (pp)"]:.3f} pp and RMSE is '
+         f'{sequence_scores.iloc[0]["RMSE (pp)"]:.3f} pp. The core baseline comparison remains essential.')
+
+# %% NOTEBOOK CELL
+# Keep every row; identify the error driving the aggregate instead of clipping it.
+worst = sequence_errors.abs().idxmax()
+case = joined.loc[worst]
+squared_share = float(sequence_errors.loc[worst] ** 2 / np.square(sequence_errors).sum())
+# One subtraction in log space becomes a multiplier after exponentiation.
+current_log_balance = np.log(case.DEPDOM)
+predicted_log_growth = case['Predicted log deposits'] - current_log_balance
+predicted_balance_multiplier = np.exp(predicted_log_growth)
+
+wm_formula_card(
+    title='Why does one log-balance miss become an enormous growth forecast?',
+    theme=theme,
+    items=[
+        {'label': 'Log growth', 'fallback': f'{case["Predicted log deposits"]:.3f} − {current_log_balance:.3f} = {predicted_log_growth:.3f}'},
+        {'label': 'Predicted balance multiplier', 'fallback': f'exp({predicted_log_growth:.3f}) = {predicted_balance_multiplier:,.2f} times the current balance'},
+        {'label': 'Ordinary growth', 'fallback': f'100 × ({predicted_balance_multiplier:,.2f} − 1) = {100 * case.TimesFM:,.2f}%'},
+    ],
+)
+
+# %% NOTEBOOK CELL
+receipt = pd.DataFrame([{
+    'Bank CERT': int(case.CERT), 'Predictor date': case.date,
+    'History quarters': int(case['Context quarters']),
+    'Predicted growth (%)': 100 * case.TimesFM,
+    'Actual growth (%)': 100 * case.growth,
+    'Share of squared error': squared_share,
+}])
+table(receipt, 'One short-history bank dominates TimesFM squared error',
+      {'Predicted growth (%)': '{:,.2f}', 'Actual growth (%)': '{:,.2f}', 'Share of squared error': '{:.2%}'})
+takeaway('The full evaluation reveals a failure the smoke test missed',
+         f'Bank {int(case.CERT)} has {int(case["Context quarters"])} historical quarters and contributes '
+         f'{squared_share:.2%} of TimesFM squared error. That observation remains in the scores. '
+         'Short history and domain mismatch are hypotheses to investigate, not established causes. '
+         'A large forecast error alone does not establish a problem at the bank.')
+
+# %% NOTEBOOK CELL
+# EXEMPLAR: analytical-question
+question_card(
+    title='Would a different pretrained forecaster help?', theme=theme,
+    body='We test Chronos-Bolt Small with the same historical log balances, one-quarter horizon, median point forecast, and all 13,532 outcomes. Its T5-based numerical forecasting architecture gives us a second approach. We do not select settings using these outcomes.',
+    kicker='A new experiment, with the same measurement contract',
+)
+
+# %% NOTEBOOK CELL
+# Join by row identity before comparing model errors.
+chronos = pd.read_csv(ROOT / 'growth_outputs/chronos_zero_shot_predictions.csv')
+chronos_joined = reference.merge(
+    chronos, on=['CERT', 'date', 'DEPDOM', 'target_date'],
+    how='outer', validate='one_to_one', indicator=True,
+)
+assert chronos_joined['_merge'].eq('both').all()
+assert len(chronos_joined) == len(joined)
+chronos_error = 100 * (chronos_joined['Chronos-Bolt'] - chronos_joined['growth'])
+chronos_scores = pd.DataFrame([{
+    'Model': 'Chronos-Bolt',
+    'MAE (pp)': chronos_error.abs().mean(),
+    'RMSE (pp)': np.sqrt(np.square(chronos_error).mean()),
+}])
+all_scores = pd.concat([comparison, chronos_scores], ignore_index=True)
+all_scores.to_csv(OUT / 'foundation_model_comparison.csv', index=False)
+
+# %% NOTEBOOK CELL
+# Position shows rank; direct numbers preserve differences hidden by the large TimesFM miss.
+fig = make_subplots(rows=1, cols=2, subplot_titles=['Mean absolute error', 'Root mean squared error'])
+for col, metric in enumerate(['MAE (pp)', 'RMSE (pp)'], start=1):
+    ordered = all_scores.sort_values(metric)
+    fig.add_trace(go.Scatter(
+        x=ordered[metric], y=ordered['Model'], mode='markers+text',
+        text=[f'{value:.3f}' for value in ordered[metric]],
+        textposition=['middle left' if model == 'TimesFM' and col == 2 else 'middle right' for model in ordered['Model']],
+        marker=dict(size=12, color=['#007F89' if i == 0 else '#526EAA' if model == 'Chronos-Bolt' else '#9AA6B2' for i, model in enumerate(ordered['Model'])]),
+        showlegend=False, hovertemplate='%{y}: %{x:.4f} pp<extra></extra>',
+    ), row=1, col=col)
+    fig.update_xaxes(type='log', title='Error (pp), log scale',
+                     tickvals=[4, 6, 10] if col == 1 else [10, 100, 300],
+                     range=[np.log10(ordered[metric].min())-.1, np.log10(ordered[metric].max())+.35], row=1, col=col)
+    fig.update_yaxes(categoryorder='array', categoryarray=ordered.Model.tolist(), autorange='reversed', row=1, col=col)
+chart(fig, 'foundation_models', 'Which approach earns its complexity on these rows?',
+      'Lower is better; every score uses all holdout rows. Foundation models receive histories, not the five tabular features.', height=490)
+mae_winner = all_scores.loc[all_scores['MAE (pp)'].idxmin(), 'Model']
+rmse_winner = all_scores.loc[all_scores['RMSE (pp)'].idxmin(), 'Model']
+takeaway(
+    'Chronos improves on TimesFM; the simple baselines still matter',
+    f'Chronos-Bolt MAE is {chronos_scores.iloc[0]["MAE (pp)"]:.3f} pp; RMSE is '
+    f'{chronos_scores.iloc[0]["RMSE (pp)"]:.3f} pp. Across these approaches, {mae_winner} '
+    f'has the lowest MAE and {rmse_winner} has the lowest RMSE. '
+    'This is an exploratory comparison on reused outcomes, not fresh confirmation of a model selected today. '
+    'Any fine-tuning must use earlier training and validation periods, followed by a genuinely new evaluation.',
+)
+
+'''
+    return ('Bonus · Can a pretrained model learn from deposit history?', prose, source, True)
+
+
+def finetuning_extension():
+    prose = '''**Can adaptation improve the pretrained forecast?** We actually update pretrained
+forecasting-head weights using earlier bank examples. The large backbones remain frozen.
+This is a bounded head-fine-tuning experiment, not full-model training or an exhaustive search.
+
+Picture the calendar: training answers end in December 2022; validation answers end
+in December 2023. The 2024 answers cannot choose a weight update, a learning rate, or a checkpoint.
+We keep step zero in the comparison, so fine-tuning has to earn its place on validation.
+
+The fixed recipe is 256 sampled batches of 32, seed 42, Adam at 0.00001, and pinball loss
+on next-quarter log balances. This is 8,192 sampled examples with replacement, not an epoch over
+all 214,425 eligible rows. TimesFM initially produced non-finite gradients through
+its horizon normalization refinement. We stopped that run, then held the refinement
+statistics fixed during backpropagation while preserving the forward calculation.
+This is a custom head-training path, not an official turnkey TimesFM 3.0 trainer.
+Checkpoints at steps 0, 128, and 256 compete on all 13,834
+validation rows using mean absolute log-balance error. This selection metric differs from
+the ordinary percentage-point errors reported below.
+
+**What actually changes a weight?** This is the Chronos update from the training
+script. `batch` contains past log balances; `y` contains training-only next-quarter
+log balances. Each column of `pred` is a predicted quantile.
+
+```python
+# First measure how far each predicted quantile is from the training answer.
+pred = model(context=torch.tensor(batch)).quantile_preds[:, :, 0]
+difference = torch.tensor(y)[:, None] - pred
+q = model.quantiles.detach()[None, :]
+loss = torch.maximum(q * difference, (q - 1) * difference).mean()
+```
+
+Now use that loss to change the head weights. The frozen backbone stays untouched.
+
+```python
+# Clear old gradients, calculate new ones, and update only the unfrozen head.
+optimizer.zero_grad()
+loss.backward()
+torch.nn.utils.clip_grad_norm_(head.parameters(), 1.0)
+optimizer.step()
+```
+
+The loss treats underprediction and overprediction differently for each quantile.
+The 0.5 quantile is the median used for our point forecast. The gradient tells the
+optimizer which way to move the head weights. Validation decides whether those
+updates deserve to be kept.
+
+Reproduce the data export and local runs from a terminal:
+
+```bash
+uv run python prepare_finetune_data.py
+uv run python finetune_foundation.py chronos
+uv run python finetune_foundation.py timesfm
+```
+
+The complete update loops live in `finetune_foundation.py`. The notebook loads their
+saved results rather than silently retraining a foundation model on every Run All.
+The original zero-shot forecasts remain available beside the adapted versions.
+
+**Boundary:** we enforce chronology in this adaptation pipeline. Original pretraining
+membership is unknown, and the checkpoints postdate 2024. We have also examined this
+holdout repeatedly. This remains retrospective exploratory evidence, not a globally
+leakage-free prospective test.
+'''
+    source = r'''
+# EXEMPLAR: analytical-question
+question_card(
+    title='Which models should learn new weights?', theme=theme,
+    body='A pretrained model can adapt. A constant forecasting rule has no weights to learn. Keep both in the comparison: adaptation must beat a useful baseline, not merely beat its own starting point.',
+    kicker='Choose the training procedure before seeing the result',
+)
+
+# %% NOTEBOOK CELL
+# Explain every model's training status instead of leaving a blank scorecard entry.
+training_decisions = pd.DataFrame([
+    {'Model': 'Zero growth', 'Training decision': 'No fitting', 'Why': 'Always predicts 0%; changing this rule would remove the baseline.'},
+    {'Model': 'Persistence', 'Training decision': 'No fitting', 'Why': 'Repeats prior growth; there are no learned weights.'},
+    {'Model': 'Ridge', 'Training decision': 'Fit on banks', 'Why': 'Coefficients fit on training rows; regularization chosen on validation. No pretrained checkpoint.'},
+    {'Model': 'MLP', 'Training decision': 'Train from scratch', 'Why': 'Weights fit on training rows; validation chooses stopping. No pretrained checkpoint.'},
+    {'Model': 'TimesFM', 'Training decision': 'Fine-tune forecast head', 'Why': 'Adapt output weights; freeze backbone to limit computation and degrees of freedom.'},
+    {'Model': 'Chronos-Bolt', 'Training decision': 'Fine-tune forecast head', 'Why': 'Same bounded adaptation question; retain step zero if validation prefers it.'},
+])
+table(training_decisions, 'What learned, what stayed fixed, and why')
+
+# %% NOTEBOOK CELL
+# Read the decision record saved before 2024 predictions were evaluated.
+fine_scores = []
+selection_rows = []
+curves = []
+for key, label in [('timesfm', 'TimesFM'), ('chronos', 'Chronos-Bolt')]:
+    path = ROOT / f'growth_outputs/{key}_finetuned_predictions.csv'
+    metadata = json.loads(path.with_suffix('.json').read_text())
+    adapted = pd.read_csv(path)
+    checked = reference.merge(
+        adapted, on=['CERT', 'date', 'DEPDOM', 'target_date'],
+        how='outer', validate='one_to_one', indicator=True,
+    )
+    assert checked['_merge'].eq('both').all() and len(checked) == len(reference)
+    assert pd.Timestamp(metadata['train_last_outcome']) < pd.Timestamp('2023-03-31')
+    assert pd.Timestamp(metadata['validation_last_outcome']) < pd.Timestamp('2024-03-31')
+    assert metadata['candidate_weights_changed']
+    errors = 100 * (checked['Prediction'] - checked['growth'])
+    fine_scores.append({
+        'Model': label + ' · selected',
+        'MAE (pp)': errors.abs().mean(),
+        'RMSE (pp)': np.sqrt(np.square(errors).mean()),
+    })
+    selection_rows.append({
+        'Model': label, 'Chosen step': metadata['selected_step'],
+        'Unique training rows seen': metadata['training_unique_rows_seen'],
+        'Trainable weights': metadata['trainable_parameters'],
+        'Status': 'Head adapted' if metadata['selected_weights_changed'] else 'Original weights retained',
+    })
+    curves.extend(dict(Model=label, **point) for point in metadata['validation'])
+finetuned_scores = pd.DataFrame(fine_scores)
+selection = pd.DataFrame(selection_rows)
+finetuned_scores.to_csv(OUT / 'finetuned_scores.csv', index=False)
+selection.to_csv(OUT / 'finetuning_selection.csv', index=False)
+
+# %% NOTEBOOK CELL
+# Validation makes the choice. Holdout scores cannot change it.
+validation_curve = pd.DataFrame(curves)
+fig = px.line(validation_curve, x='step', y='validation_log_MAE', color='Model', markers=True)
+fig.update_xaxes(title='Training updates', tickvals=[0, 128, 256])
+fig.update_yaxes(title='Validation MAE in log balance; lower is better')
+chart(fig, 'finetuning_validation', 'Did the updates help on validation?',
+      'Step zero is the untouched pretrained model. Only these 2023 scores select the checkpoint.', height=400)
+table(selection, 'The checkpoint decision was frozen before scoring 2024')
+
+# %% NOTEBOOK CELL
+# Keep the zero-shot result visible; report every row, with no post-hoc clipping.
+adaptation_scores = pd.concat([all_scores, finetuned_scores], ignore_index=True)
+adaptation_scores.to_csv(OUT / 'adaptation_comparison.csv', index=False)
+fig = make_subplots(rows=1, cols=2, subplot_titles=['Mean absolute error', 'Root mean squared error'])
+for col, metric in enumerate(['MAE (pp)', 'RMSE (pp)'], start=1):
+    ordered = adaptation_scores.sort_values(metric)
+    fig.add_trace(go.Scatter(
+        x=ordered[metric], y=ordered.Model, mode='markers+text',
+        text=[f'{v:.3f}' for v in ordered[metric]],
+        textposition=['middle left' if m.startswith('TimesFM') and col == 2 else 'middle right' for m in ordered.Model],
+        marker=dict(size=11, color=['#007F89' if i == 0 else '#526EAA' if 'selected' in m else '#A0A8B0' for i, m in enumerate(ordered.Model)]),
+        showlegend=False, hovertemplate='%{y}: %{x:.4f} pp<extra></extra>',
+    ), row=1, col=col)
+    fig.update_xaxes(type='log', title='Error (pp), log scale',
+                     tickvals=[4, 6, 10] if col == 1 else [10, 100, 300],
+                     range=[np.log10(ordered[metric].min())-.1, np.log10(ordered[metric].max())+.4], row=1, col=col)
+    fig.update_yaxes(categoryorder='array', categoryarray=ordered.Model.tolist(), autorange='reversed', row=1, col=col)
+chart(fig, 'adaptation_comparison', 'Does validation-selected adaptation beat our baselines?',
+      'Blue = validation-selected foundation-model checkpoint; teal = lowest score. All 13,532 evaluation rows remain.', height=590)
+for label in ['TimesFM', 'Chronos-Bolt']:
+    chosen = finetuned_scores.set_index('Model').loc[label + ' · selected']
+    original = all_scores.set_index('Model').loc[label]
+    decision = selection.set_index('Model').loc[label]
+    takeaway(
+        f'{label}: {decision["Status"].lower()}',
+        f'Validation selected step {decision["Chosen step"]}. '
+        f'2024 MAE: {original["MAE (pp)"]:.3f} → {chosen["MAE (pp)"]:.3f} pp; '
+        f'RMSE: {original["RMSE (pp)"]:.3f} → {chosen["RMSE (pp)"]:.3f} pp. '
+        'This tests one bounded head-adaptation recipe. It does not establish the best achievable fine-tuned performance.',
+    )
+wm_counterintuitive_card(
+    title='Would more training automatically make the review list better?', theme=theme,
+    why_misread='Lower forecast error sounds like better bank selection.',
+    ordinary_process='Average error and finding the weakest banks reward different behavior. A model can improve one and worsen the other.',
+    conclusion_boundary='These adaptation scores measure forecast error. They do not establish improved review precision, bank distress, or money saved. Any review policy needs its own fixed-capacity evaluation.',
+    kicker='Keep the decision tied to its metric', chip_text='CHECK',
+)
+'''
+    return ('Bonus · Does fine-tuning earn its place?', prose, source, True)
 
 
 def arrange_story():
@@ -3271,6 +3654,8 @@ wm_counterintuitive_card(
         ranking,
         anomaly_section,
         conclusion,
+        timesfm_extension(),
+        finetuning_extension(),
         comparability_appendix,
         seeds,
         bootstrap,

@@ -78,17 +78,14 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(fig['layout']['xaxis']['range'],fig['layout']['yaxis']['range'])
 
         comparison=json.loads((out/'comparison.json').read_text())
-        self.assertEqual(len(comparison['data']),10)
+        self.assertEqual(len(comparison['data']),8)
         self.assertTrue(all(trace['type']=='scatter' for trace in comparison['data']))
         winners=[trace for trace in comparison['data'] if trace.get('marker',{}).get('color')=='#007F89']
         self.assertEqual(len(winners),2)
         self.assertEqual({trace['y'][0] for trace in winners},{'Zero growth','MLP'})
-        pending=[trace for trace in comparison['data'] if trace['y']==['TimesFM']]
-        self.assertEqual(len(pending),2)
-        self.assertTrue(all(trace['text']==['Not tested'] for trace in pending))
         scores=pd.read_csv(ROOT/'growth_outputs/masterclass/historical_scores.csv').set_index('Model')
         for panel, column in ((comparison['data'][:4],'MAE (pp)'),
-                              (comparison['data'][5:9],'RMSE (pp)')):
+                              (comparison['data'][4:8],'RMSE (pp)')):
             for trace in panel:
                 self.assertAlmostEqual(trace['x'][0],scores.loc[trace['y'][0],column],places=10)
 
@@ -97,8 +94,7 @@ class ExperimentTests(unittest.TestCase):
                             and "'comparison'," in cell.source)
         rendered='\n'.join(output.get('data',{}).get('text/html','')
                            for output in scorecard_cell.outputs)
-        self.assertIn('TimesFM',rendered)
-        self.assertIn('Not tested',rendered)
+        self.assertNotIn('Not tested',rendered)
 
     def test_eda_inspection_and_time_series_are_saved(self):
         nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
@@ -193,11 +189,84 @@ class ExperimentTests(unittest.TestCase):
 
         nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
         source='\n'.join(cell.source for cell in nb.cells)
-        self.assertIn("y=['TimesFM']",source)
+        self.assertIn('timesfm_comparison',source)
         self.assertIn('What does the 4.3% improvement buy us?',source)
         self.assertIn('Would anomaly detection give us a better review list?',source)
         self.assertIn('Future-quarter balances cannot enter a score',source)
         self.assertNotIn('TimesFM,', (out/'historical_scores.csv').read_text())
+
+    def test_timesfm_uses_full_holdout_and_separate_extension(self):
+        predicted = pd.read_csv(ROOT/'growth_outputs/timesfm_zero_shot_predictions.csv')
+        reference = pd.read_csv(ROOT/'growth_outputs/submission/predictions.csv')
+        joined = predicted.merge(reference[['CERT','date','growth']], on=['CERT','date'],
+                                 how='outer', validate='one_to_one', indicator=True)
+        self.assertTrue(joined['_merge'].eq('both').all())
+        self.assertEqual(len(joined), 13532)
+        error = 100*(joined.TimesFM-joined.growth)
+        scores = pd.read_csv(ROOT/'growth_outputs/masterclass/timesfm_comparison.csv').set_index('Model')
+        self.assertAlmostEqual(scores.loc['TimesFM','MAE (pp)'], error.abs().mean())
+        self.assertAlmostEqual(scores.loc['TimesFM','RMSE (pp)'], np.sqrt(np.square(error).mean()))
+        from benchmark_timesfm import build_contexts
+        raw = pd.read_csv(ROOT/'data/fdic_financials_2013_2024.csv')
+        probe = reference.iloc[[0]].copy()
+        before,_ = build_contexts(raw,probe)
+        dates = pd.to_datetime(raw.REPDTE.astype(str),format='%Y%m%d')
+        raw.loc[dates > pd.Timestamp(probe.iloc[0].date),'DEPDOM'] = 999999999999
+        after,_ = build_contexts(raw,probe)
+        np.testing.assert_array_equal(before[0],after[0])
+        master = nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
+        titles = [c.source for c in master.cells if c.cell_type=='markdown']
+        bonus = next(i for i,t in enumerate(titles) if '## Bonus' in t)
+        self.assertFalse(any(line.startswith('    ') for line in titles[bonus].splitlines() if line.strip()))
+        core = next(i for i,t in enumerate(titles) if '## 14 · What did we learn?' in t)
+        self.assertGreater(bonus,core)
+        submission = nbformat.read(ROOT/'FDIC_Deep_Learning_Submission.ipynb',as_version=4)
+        self.assertFalse(any('## Bonus' in c.source for c in submission.cells))
+
+    def test_chronos_and_source_state_denominators(self):
+        reference = pd.read_csv(ROOT / 'growth_outputs/submission/predictions.csv')
+        predicted = pd.read_csv(ROOT / 'growth_outputs/chronos_zero_shot_predictions.csv')
+        joined = reference.merge(predicted, on=['CERT', 'date', 'DEPDOM', 'target_date'],
+                                 how='outer', validate='one_to_one', indicator=True)
+        self.assertTrue(joined['_merge'].eq('both').all())
+        self.assertEqual(len(joined), 13532)
+        timesfm = pd.read_csv(ROOT / 'growth_outputs/timesfm_zero_shot_predictions.csv')
+        pd.testing.assert_frame_equal(
+            predicted[['CERT', 'date', 'Context start', 'Context quarters']],
+            timesfm[['CERT', 'date', 'Context start', 'Context quarters']],
+        )
+        error = 100 * (joined['Chronos-Bolt'] - joined['growth'])
+        scores = pd.read_csv(ROOT / 'growth_outputs/masterclass/foundation_model_comparison.csv').set_index('Model')
+        self.assertAlmostEqual(scores.loc['Chronos-Bolt', 'MAE (pp)'], error.abs().mean())
+        self.assertAlmostEqual(scores.loc['Chronos-Bolt', 'RMSE (pp)'], np.sqrt(np.square(error).mean()))
+        states = pd.read_csv(ROOT / 'growth_outputs/masterclass/uninsured_states.csv')
+        np.testing.assert_allclose(states['Missing'] + states['Zero'] + states['Nonzero'], states['Rows'])
+        populated = states['API populated'].gt(0)
+        np.testing.assert_allclose(states.loc[populated, 'Zero share'],
+                                   states.loc[populated, 'Zero values'] / states.loc[populated, 'API populated'])
+        chart = json.loads((ROOT / 'growth_outputs/masterclass/charts/uninsured_states.json').read_text())
+        self.assertEqual(len(chart['data']), 12)
+
+    def test_finetuning_selection_respects_time_and_validation(self):
+        reference = pd.read_csv(ROOT / 'growth_outputs/submission/predictions.csv')
+        for key in ['chronos', 'timesfm']:
+            path = ROOT / f'growth_outputs/{key}_finetuned_predictions.csv'
+            meta = json.loads(path.with_suffix('.json').read_text())
+            self.assertTrue(meta['candidate_weights_changed'])
+            self.assertLess(meta['trainable_parameters'], meta['total_parameters'])
+            self.assertLess(meta['training_unique_rows_seen'], meta['training_rows'])
+            self.assertLess(pd.Timestamp(meta['train_last_outcome']), pd.Timestamp('2023-03-31'))
+            self.assertLess(pd.Timestamp(meta['validation_last_outcome']), pd.Timestamp('2024-03-31'))
+            winner = min(meta['validation'], key=lambda row: row['validation_log_MAE'])
+            self.assertEqual(meta['selected_step'], winner['step'])
+            selected = pd.read_csv(path)
+            joined = reference.merge(selected, on=['CERT', 'date', 'DEPDOM', 'target_date'],
+                                     how='outer', validate='one_to_one', indicator=True)
+            self.assertTrue(joined['_merge'].eq('both').all())
+            self.assertEqual(len(joined), 13532)
+            error = 100 * (joined.Prediction - joined.growth)
+            self.assertAlmostEqual(meta['MAE (pp)'], error.abs().mean())
+            self.assertAlmostEqual(meta['RMSE (pp)'], np.sqrt(np.square(error).mean()))
 
     def test_saved_tables_keep_human_reading_order(self):
         out=ROOT/'growth_outputs/masterclass'

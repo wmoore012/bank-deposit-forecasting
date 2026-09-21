@@ -1,0 +1,13 @@
+{
+  "model": "Chronos-Bolt Small",
+  "checkpoint": "amazon/chronos-bolt-small",
+  "checkpoint_revision": "772f3d25d38aec6d914c8949dab4462e2d46f5d8",
+  "package_version": "2.3.2",
+  "rows": 13532,
+  "mode": "zero-shot; median forecast; CPU float32; no fitting or holdout tuning",
+  "input": "same consecutive positive log-deposit contexts as TimesFM",
+  "retrospective": true,
+  "pretraining_overlap": "not independently ruled out",
+  "MAE (pp)": 3.914541624330495,
+  "RMSE (pp)": 7.224162820805187
+}

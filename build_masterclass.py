@@ -56,7 +56,11 @@ from wm_notecards.cards import (
     wm_counterintuitive_card,
     wm_formula_card,
 )
-from wm_notecards.charts import style_fig_wm, wm_render_figure_card
+from wm_notecards.charts import (
+    plot_shell_html,
+    style_fig_wm,
+    wm_render_figure_card,
+)
 from wm_notecards.tables import wm_render_styler
 SEED = 42
 FEATURES = [
@@ -72,6 +76,9 @@ MODEL_COLORS = {
     'Ridge': '#526EAA',
     'MLP': '#007F89',
 }
+MODEL_ORDER = ['Zero growth', 'Persistence', 'Ridge', 'MLP']
+SIZE_ORDER = ['Smallest', 'Lower middle', 'Upper middle', 'Largest']
+SLICE_ORDER = ['All', 'Realized bottom 25%', 'Realized bottom 10%']
 
 ROOT = Path.cwd()
 assert (ROOT / 'data/fdic_financials_2020_2024.csv').is_file(), (
@@ -149,6 +156,24 @@ def table(frame, title, formats=None):
         title=title,
         wrap_columns=wrap_columns,
     )
+
+
+def ordered_rows(frame, columns, category_orders=None, ascending=True):
+    """Return rows in the order a reader expects to scan them."""
+    result = frame.copy()
+
+    for column, values in (category_orders or {}).items():
+        result[column] = pd.Categorical(
+            result[column],
+            categories=values,
+            ordered=True,
+        )
+
+    return result.sort_values(
+        columns,
+        ascending=ascending,
+        kind='stable',
+    ).reset_index(drop=True)
 
 
 def chart(fig, name, title, subtitle='', height=540):
@@ -230,7 +255,31 @@ def chart(fig, name, title, subtitle='', height=540):
         lambda axis: axis.update(dtick=1) if axis.type == 'log' else None
     )
     fig.write_json(OUT / 'charts' / f'{name}.json')
-    wm_render_figure_card(fig, theme=theme, file_stub=name)
+
+    if 'google.colab' in sys.modules:
+        wm_render_figure_card(fig, theme=theme, file_stub=name)
+        return
+
+    # VS Code chooses Plotly's native MIME renderer before the centered WM
+    # shell. Render one self-contained HTML output locally so the shell owns
+    # alignment. Plotly.js was loaded once in the setup cell above.
+    figure_html = fig.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={
+            'displaylogo': False,
+            'responsive': False,
+            'displayModeBar': False,
+        },
+        default_width='860px',
+        default_height=f'{height}px',
+    )
+    shell = plot_shell_html(
+        figure_html,
+        theme,
+        figure_width=860,
+    )
+    display(HTML(shell))
 def takeaway(title,body,metric=None):
     takeaway_card(title=title,body=body,metric=metric,theme=theme)
 def scores(y,pred):
@@ -377,6 +426,11 @@ missing = (
     .rename_axis('Field')
     .reset_index()
 )
+missing = ordered_rows(
+    missing,
+    ['Missing rows', 'Field'],
+    ascending=[False, True],
+)
 table(missing, 'Missing values in the 2010–2024 audit file')
 
 fig = px.bar(
@@ -403,7 +457,11 @@ by_form = (
 )
 by_form.to_csv(OUT / 'reporting_forms.csv', index=False)
 table(
-    by_form.loc[by_form['Missing_equity'].gt(0)],
+    ordered_rows(
+        by_form.loc[by_form['Missing_equity'].gt(0)],
+        ['Missing_equity', 'BKCLASS', 'CALLFORM'],
+        ascending=[False, True, True],
+    ),
     'Which reporting groups lack equity?',
 )
 
@@ -558,6 +616,11 @@ def summarize_dollars_by_size(rows):
 # Run the two small helpers, then inspect where the decline dollars landed.
 old = build_experiment_zero_rows(recent_extract)
 concentration = summarize_dollars_by_size(old)
+concentration = ordered_rows(
+    concentration,
+    ['Size group'],
+    category_orders={'Size group': SIZE_ORDER},
+)
 
 table(
     concentration,
@@ -607,6 +670,7 @@ comparison = pd.DataFrame(
         ],
     }
 )
+comparison = ordered_rows(comparison, ['Quarter-average capture (%)'])
 table(
     comparison,
     'Archived Experiment 0: 10% review capacity',
@@ -808,6 +872,18 @@ missing_next = (
     .reset_index()
 )
 
+next_report_order = [
+    'Adjacent next report',
+    'Dataset end',
+    'Institution stops before dataset end',
+    'Gap before later report',
+]
+missing_next = ordered_rows(
+    missing_next,
+    ['Next report status'],
+    category_orders={'Next report status': next_report_order},
+)
+
 table(missing_next, 'A missing future balance stays missing')
 
 fig = px.bar(
@@ -857,6 +933,12 @@ conditions = {
 
 rows, eligibility_ledger = apply_rules(panel, conditions)
 rows = add_model_fields(rows)
+
+eligibility_ledger = ordered_rows(
+    eligibility_ledger,
+    ['Rule'],
+    category_orders={'Rule': ['All source rows', *conditions.keys()]},
+)
 
 assert np.isfinite(rows['growth']).all()
 assert np.isfinite(rows['log_growth']).all()
@@ -944,6 +1026,13 @@ split_summary = pd.DataFrame(
         describe_split('Validation', valid),
         describe_split('Reused holdout', holdout),
     ]
+)
+split_summary = ordered_rows(
+    split_summary,
+    ['Period'],
+    category_orders={
+        'Period': ['Training', 'Validation', 'Reused holdout'],
+    },
 )
 table(split_summary, 'Accounting dates define this retrospective experiment')
 
@@ -1110,6 +1199,17 @@ for target_label, column, multiplier in target_specs:
     )
 
 target_summary = pd.DataFrame(target_summary)
+target_summary = ordered_rows(
+    target_summary,
+    ['Target'],
+    category_orders={
+        'Target': [
+            'Dollar change (USD million)',
+            'Signed growth (%)',
+            'Log growth',
+        ],
+    },
+)
 table(
     target_summary,
     'Training targets: full-range arithmetic',
@@ -1174,6 +1274,12 @@ shown_extremes = extremes[
         'Name changed',
     ]
 ]
+shown_extremes = shown_extremes.assign(
+    _absolute_growth=shown_extremes['growth'].abs()
+).sort_values(
+    ['_absolute_growth', 'CERT'],
+    ascending=[False, True],
+).drop(columns='_absolute_growth')
 table(
     shown_extremes,
     'Largest training changes: balances in USD thousands',
@@ -1604,6 +1710,11 @@ validation_scores = pd.DataFrame(
         for model_name, prediction in validation_predictions.items()
     ]
 )
+validation_scores = ordered_rows(
+    validation_scores,
+    ['Model'],
+    category_orders={'Model': MODEL_ORDER},
+)
 
 table(
     validation_scores,
@@ -1770,13 +1881,18 @@ metrics = pd.DataFrame(
         for model_name, prediction in log_predictions.items()
     ]
 )
+metrics = ordered_rows(
+    metrics,
+    ['Model'],
+    category_orders={'Model': MODEL_ORDER},
+)
 table(
     metrics,
     'Reused 2024 holdout: every eligible row counts',
     {'MAE (pp)': '{:.4f}', 'RMSE (pp)': '{:.4f}'},
 )
 
-# Close metric values call for a dot plot with focused, clearly labeled axes.
+# Direct labels and selective color make each metric winner visible at a glance.
 fig = make_subplots(
     rows=1,
     cols=2,
@@ -1787,42 +1903,56 @@ fig = make_subplots(
     horizontal_spacing=0.22,
 )
 
-for model_name, prediction in log_predictions.items():
-    result = log_scores(y_test, prediction)
+for column_number, metric_name in enumerate(
+    ['MAE (pp)', 'RMSE (pp)'],
+    start=1,
+):
+    metric_values = metrics.set_index('Model')[metric_name].reindex(MODEL_ORDER)
+    winner_name = metric_values.idxmin()
+    bar_colors = [
+        '#007F89'
+        if model_name == winner_name
+        else '#D3D8DE'
+        for model_name in MODEL_ORDER
+    ]
 
-    for column_number, metric_name in enumerate(
-        ['MAE (pp)', 'RMSE (pp)'],
-        start=1,
-    ):
-        fig.add_trace(
-            go.Scatter(
-                x=[result[metric_name]],
-                y=[model_name],
-                mode='markers',
-                marker={
-                    'size': 12,
-                    'color': MODEL_COLORS[model_name],
-                },
-                name=model_name,
-                showlegend=False,
-                hovertemplate=(
-                    f'%{{y}}<br>{metric_name}: %{{x:.3f}}<extra></extra>'
-                ),
+    fig.add_trace(
+        go.Bar(
+            x=metric_values.values,
+            y=MODEL_ORDER,
+            orientation='h',
+            marker_color=bar_colors,
+            text=[f'{value:.3f} pp' for value in metric_values],
+            textposition='outside',
+            cliponaxis=False,
+            showlegend=False,
+            hovertemplate=(
+                '%{y}<br>'
+                + metric_name
+                + ': %{x:.3f} pp<extra></extra>'
             ),
-            row=1,
-            col=column_number,
-        )
-        fig.update_xaxes(
-            title='Percentage points',
-            row=1,
-            col=column_number,
-        )
+        ),
+        row=1,
+        col=column_number,
+    )
+    fig.update_xaxes(
+        title='Percentage points; lower is better',
+        range=[0, metric_values.max() * 1.18],
+        row=1,
+        col=column_number,
+    )
+    fig.update_yaxes(
+        categoryorder='array',
+        categoryarray=list(reversed(MODEL_ORDER)),
+        row=1,
+        col=column_number,
+    )
 
 chart(
     fig,
     'comparison',
     'Which forecast has the smallest error?',
-    'Each panel uses its own focused scale; lower is better',
+    'Teal marks the winner in each panel; exact errors appear on the bars',
     height=560,
 )
 
@@ -1836,8 +1966,16 @@ scatter = test[['CERT', 'NAME', 'date', 'growth']].copy()
 scatter['Actual (%)'] = 100 * scatter['growth']
 scatter['Predicted (%)'] = 100 * growth_predictions['MLP']
 
+actual_limits = scatter['Actual (%)'].quantile([0.01, 0.99])
+predicted_limits = scatter['Predicted (%)'].quantile([0.01, 0.99])
+central_mask = (
+    scatter['Actual (%)'].between(*actual_limits)
+    & scatter['Predicted (%)'].between(*predicted_limits)
+)
+central_scatter = scatter.loc[central_mask].copy()
+
 fig = px.scatter(
-    scatter,
+    central_scatter,
     x='Actual (%)',
     y='Predicted (%)',
     hover_data=['NAME', 'CERT', 'date'],
@@ -1846,12 +1984,12 @@ fig = px.scatter(
 )
 
 lower_bound = min(
-    scatter['Actual (%)'].min(),
-    scatter['Predicted (%)'].min(),
+    central_scatter['Actual (%)'].min(),
+    central_scatter['Predicted (%)'].min(),
 )
 upper_bound = max(
-    scatter['Actual (%)'].max(),
-    scatter['Predicted (%)'].max(),
+    central_scatter['Actual (%)'].max(),
+    central_scatter['Predicted (%)'].max(),
 )
 span = max(upper_bound - lower_bound, 1)
 bounds = [
@@ -1877,8 +2015,11 @@ fig.update_yaxes(
 chart(
     fig,
     'actual_predicted',
-    'Do forecasts follow the outcomes?',
-    'All historical evaluation rows; equal axis units',
+    'Most MLP forecasts stay close to zero growth',
+    (
+        f'Central 98% view; {len(scatter) - len(central_scatter):,} extreme '
+        'rows remain in every score and table'
+    ),
     height=700,
 )
 
@@ -1957,26 +2098,42 @@ for quarter, part in result_frame.groupby('date'):
                     'Squared error':(part.loc[idx,'growth']-part.loc[idx,n])**2,
                 })
 
-quarter_scores=pd.DataFrame(quarter_rows)
+quarter_scores = ordered_rows(
+    pd.DataFrame(quarter_rows),
+    ['Quarter', 'Model'],
+    category_orders={'Model': MODEL_ORDER},
+)
 table(quarter_scores,'Three quarters, separate error checks',{'MAE (pp)':'{:.3f}','RMSE (pp)':'{:.3f}'})
 fig=px.line(quarter_scores,x='Quarter',y='MAE (pp)',color='Model',symbol='Model',markers=True,color_discrete_map=MODEL_COLORS)
 fig.update_xaxes(tickvals=sorted(result_frame.date.unique()),tickformat='%b %Y')
 chart(fig,'quarter_errors','Is one quarter driving the pooled error?','Predictor quarters; each outcome is one quarter later')
-equal_quarter=quarter_scores.groupby('Model',sort=False)['MAE (pp)'].mean().reset_index(name='Equal-quarter MAE (pp)')
+equal_quarter = (
+    quarter_scores.groupby('Model', sort=False, observed=True)['MAE (pp)']
+    .mean()
+    .reset_index(name='Equal-quarter MAE (pp)')
+)
+equal_quarter = ordered_rows(
+    equal_quarter,
+    ['Model'],
+    category_orders={'Model': MODEL_ORDER},
+)
 table(equal_quarter,'Give each evaluation quarter equal weight',{'Equal-quarter MAE (pp)':'{:.3f}'})
 tail_errors=pd.DataFrame(tail_rows).groupby(['Slice','Model'],sort=False).agg(
     Rows=('Index','size'),MAE=('Absolute error','mean'),MSE=('Squared error','mean')).reset_index()
 tail_errors['MAE (pp)'] = 100 * tail_errors['MAE']
 tail_errors['RMSE (pp)'] = 100 * np.sqrt(tail_errors['MSE'])
+tail_errors = ordered_rows(
+    tail_errors,
+    ['Slice', 'Model'],
+    category_orders={
+        'Slice': SLICE_ORDER,
+        'Model': MODEL_ORDER,
+    },
+)
 table(tail_errors[['Slice','Model','Rows','MAE (pp)','RMSE (pp)']],'How wrong are forecasts when growth is weak?',{'MAE (pp)':'{:.3f}','RMSE (pp)':'{:.3f}'})
-slice_order = [
-    'All',
-    'Realized bottom 25%',
-    'Realized bottom 10%',
-]
 tail_errors['Slice'] = pd.Categorical(
     tail_errors['Slice'],
-    categories=slice_order,
+    categories=SLICE_ORDER,
     ordered=True,
 )
 
@@ -1989,7 +2146,7 @@ fig = px.line(
     color='Model',
     markers=True,
     text='MAE (pp)',
-    category_orders={'Slice': slice_order},
+    category_orders={'Slice': SLICE_ORDER},
     color_discrete_map=MODEL_COLORS,
     hover_data=['Rows'],
 )
@@ -2076,6 +2233,11 @@ ranking_display['Quarter'] = (
     pd.to_datetime(ranking_display.Quarter)
     .dt.to_period('Q')
     .astype(str)
+)
+ranking_display = ordered_rows(
+    ranking_display,
+    ['Quarter', 'Model'],
+    category_orders={'Model': MODEL_ORDER},
 )
 table(
     ranking_display,
@@ -2201,7 +2363,10 @@ seed_results=[{'Seed':42,**log_scores(y_valid, validation_predictions['MLP']),'B
 for seed in [7,99]:
     other,h,seconds=fit_network(seed)
     seed_results.append({'Seed':seed,**log_scores(y_valid, predict_log_growth(other, X_valid)),'Best epoch':int(np.argmin(h['val_loss'])+1)})
-seed_results=pd.DataFrame(seed_results)
+seed_results = ordered_rows(
+    pd.DataFrame(seed_results),
+    ['Seed'],
+)
 table(seed_results,'Same data, different starting weights',{'MAE (pp)':'{:.3f}','RMSE (pp)':'{:.3f}'})
 fig=px.scatter(seed_results,x='MAE (pp)',y=seed_results.Seed.astype(str),color_discrete_sequence=['#007F89'])
 fig.update_yaxes(title='Random seed')
@@ -2271,7 +2436,15 @@ aggregate=uninsured.groupby(['Quarter','Asset group','Field'],as_index=False)[['
 aggregate['Coverage']=aggregate['API populated']/aggregate.Rows
 aggregate['Date']=pd.to_datetime(aggregate.Quarter.astype(str))
 aggregate['Zero share']=aggregate['Zero values']/aggregate.Rows
-table(uninsured.loc[uninsured.Quarter.eq(uninsured.Quarter.max())],'Latest quarter: coverage by size and reporting form',{'Coverage':'{:.1%}'})
+latest_uninsured = ordered_rows(
+    uninsured.loc[uninsured.Quarter.eq(uninsured.Quarter.max())],
+    ['Asset group', 'Field', 'Call form'],
+    category_orders={
+        'Asset group': ['At least USD 1bn', 'Below USD 1bn'],
+        'Field': ['DEPUNA', 'DEPUNINS'],
+    },
+)
+table(latest_uninsured,'Latest quarter: coverage by size and reporting form',{'Coverage':'{:.1%}'})
 fig=px.line(aggregate,x='Date',y='Coverage',color='Asset group',line_dash='Field',
     color_discrete_map={'At least USD 1bn':'#007F89','Below USD 1bn':'#AF7721'})
 fig.update_yaxes(tickformat='.0%',range=[0,1.05])

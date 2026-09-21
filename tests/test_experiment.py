@@ -52,14 +52,8 @@ class ExperimentTests(unittest.TestCase):
             self.assertIn('Plotly.newPlot',html)
             self.assertIn('"responsive": false',html)
             self.assertNotIn('src="https://cdn.plot.ly/',html)
-            plotly_outputs=[
-                o for c in nb.cells for o in c.get('outputs',[])
-                if 'application/vnd.plotly.v1+json' in o.get('data',{})
-            ]
-            self.assertGreaterEqual(len(plotly_outputs),8)
-            for output in plotly_outputs:
-                self.assertIn('text/html',output.data)
-                self.assertTrue(output.data['application/vnd.plotly.v1+json']['data'])
+            self.assertGreaterEqual(html.count('wm-plot-shell-wrap'),8)
+            self.assertIn('justify-content:center',html)
     def test_histograms_remain_numeric_and_scatter_axes_match(self):
         out=ROOT/'growth_outputs/masterclass/charts'
         fig=json.loads((out/'target_full_growth.json').read_text())
@@ -69,6 +63,11 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(fig['layout']['hoverlabel']['font']['color'],'#182E3A')
         self.assertEqual(fig['layout']['yaxis']['scaleanchor'],'x')
         self.assertEqual(fig['layout']['xaxis']['range'],fig['layout']['yaxis']['range'])
+
+        comparison=json.loads((out/'comparison.json').read_text())
+        self.assertTrue(all(trace['type']=='bar' for trace in comparison['data']))
+        for trace in comparison['data']:
+            self.assertEqual(trace['marker']['color'].count('#007F89'),1)
 
     def test_diagnostic_charts_answer_their_questions(self):
         out=ROOT/'growth_outputs/masterclass/charts'
@@ -82,4 +81,24 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(ranking['layout']['yaxis']['range'],[0,0.31])
         labels=[label for trace in ranking['data'] for label in trace['text']]
         self.assertTrue(all(' of ' in label for label in labels))
+
+    def test_saved_tables_keep_human_reading_order(self):
+        out=ROOT/'growth_outputs/masterclass'
+        model_order=['Zero growth','Persistence','Ridge','MLP']
+
+        scores=pd.read_csv(out/'historical_scores.csv')
+        self.assertEqual(scores.Model.tolist(),model_order)
+
+        quarter=pd.read_csv(out/'quarter_scores.csv')
+        expected=[]
+        for date in sorted(quarter.Quarter.unique()):
+            expected.extend((date,model) for model in model_order)
+        self.assertEqual(list(zip(quarter.Quarter,quarter.Model)),expected)
+
+        tails=pd.read_csv(out/'tail_errors.csv')
+        slice_order=['All','Realized bottom 25%','Realized bottom 10%']
+        expected=[]
+        for slice_name in slice_order:
+            expected.extend((slice_name,model) for model in model_order)
+        self.assertEqual(list(zip(tails.Slice,tails.Model)),expected)
 if __name__=='__main__':unittest.main()

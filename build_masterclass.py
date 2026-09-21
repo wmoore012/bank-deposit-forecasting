@@ -367,6 +367,10 @@ section('7 · Give every model the same information', '''
 Standardization subtracts a training mean and divides by a training standard deviation.
 A missing predictor gets its training median. Validation and historical rows reuse those exact values.
 
+Before transforming anything, inspect the five inputs on the training period. The summary shows scale and
+extremes. The correlation view asks whether the inputs repeat the same information. The prior-versus-next
+scatter asks whether “repeat last quarter” has visible signal before we give that rule a formal score.
+
 Our comparison ladder has four rungs: zero growth; repeat last quarter’s growth; Ridge; the small MLP.
 Ridge strength is selected from a fixed grid using validation MAE. The MLP stops on validation MSE.
 MAE describes the average absolute miss. RMSE gives large misses extra weight.
@@ -376,6 +380,24 @@ A forecast of +2% when reality is −3% misses by **5 percentage points**.
 feature_ledger=pd.DataFrame({'Input':FEATURES,'Calculation':['ln(DEPDOM)','CHBAL / ASSET','LNLSNET / ASSET','EQ / ASSET','(DEPDOM − prior DEPDOM) / prior DEPDOM'],
     'Timing':['Current quarter']*4+['Current and adjacent prior quarter']})
 table(feature_ledger,'Five inputs; no future balance')
+feature_summary=train[FEATURES].describe(percentiles=[.01,.25,.5,.75,.99]).T.reset_index(names='Feature')
+table(feature_summary,'What do the five training inputs look like?',
+    {c:'{:,.4f}' for c in feature_summary.select_dtypes(include='number').columns})
+corr=train[FEATURES].corr(method='spearman')
+shown=corr.mask(np.triu(np.ones_like(corr,dtype=bool)))
+fig=go.Figure(go.Heatmap(z=shown.to_numpy(),x=FEATURES,y=FEATURES,zmin=-1,zmax=1,
+    colorscale=[[0,'#AF7721'],[.5,'#F4F6F7'],[1,'#007F89']],text=shown.round(2).astype(str),
+    texttemplate='%{text}',hovertemplate='%{y} vs %{x}<br>Spearman %{z:.3f}<extra></extra>',colorbar_title='Spearman'))
+fig.update_yaxes(autorange='reversed')
+chart(fig,'feature_correlations','Do the five inputs repeat the same information?',
+    'Training rows only; lower triangle; Spearman correlation')
+sample=train[['prior_growth','growth']].dropna().sample(n=min(5000,len(train)),random_state=SEED)
+fig=px.scatter(sample,x='prior_growth',y='growth',opacity=.20,color_discrete_sequence=['#007F89'])
+fig.add_hline(y=0,line_color='#737B86');fig.add_vline(x=0,line_color='#737B86')
+fig.update_xaxes(title='Prior-quarter deposit growth',tickformat='.0%')
+fig.update_yaxes(title='Next-quarter deposit growth',tickformat='.0%')
+chart(fig,'persistence_eda','Does last quarter point toward next quarter?',
+    'Random sample of 5,000 training rows; the formal persistence score comes later')
 imputer=SimpleImputer(strategy='median')
 scaler=StandardScaler()
 X_train=scaler.fit_transform(imputer.fit_transform(train[FEATURES])).astype('float32')
@@ -573,8 +595,20 @@ precision=ranking.loc[ranking.Model.eq('MLP'),'Precision'].mean()
 takeaway('Forecast error and identification answer different questions',f'The MLP selection has {precision:.1%} precision on an equal-quarter average. A useful average forecast does not automatically produce a useful review ranking.')
 ''')
 section('11 · What did we learn, and what would we do next?', '''
-**The conclusion must come from the score table.** Complexity earns a place only when it changes the evidence.
-If a simpler method wins, keep that result. It teaches us where the nonlinear model failed to add value.
+**The answer is no: this small neural network did not add useful nonlinear forecasting value on the reused
+2024 holdout.** Zero growth had the lowest MAE at **3.60 percentage points**. Ridge had the lowest RMSE at
+**6.62 percentage points**. The MLP reached **4.14 MAE** and **6.72 RMSE**, so it did not beat both the
+simple historical rules and the linear model.
+
+The weak-outcome results sharpen that answer. The MLP's MAE rose from **4.14 points overall** to **8.78
+points in the realized bottom decile**. When the model selected the 10% of banks it expected to have the
+weakest growth, only **14.9%** were actually in that quarter's bottom decile on average. Ridge produced the
+stronger ranking. Average error therefore hid exactly the weakness a bank analyst would care about most.
+
+That is still a useful result. Current balance-sheet ratios contain some signal—the Ridge model slightly
+reduced RMSE—but the extra bends available to the MLP did not pay for their complexity. A practical analyst
+should keep the simple benchmark, audit large misses for mergers and institutional changes, and collect a
+later untouched period before treating any ranking as operational evidence.
 
 **Why can zero growth win MAE while Ridge wins RMSE?** They reward different behavior.
 An error of 10 percentage points contributes 10 to absolute error and 100 to squared error.
@@ -716,7 +750,8 @@ What does the bootstrap leave uncertain?
 Visual choices follow the questions: histograms for target shape, a timeline for leakage,
 dots for close model errors, lines for quarters and optimization, and a scatter for individual forecasts.
 Maps and pies add no evidence to this question. Classification graphics stay with the classification experiment.
-A correlation heatmap is omitted because this fixed five-input comparison does not use correlation-based selection.
+The lower-triangle correlation heatmap is descriptive: it checks whether the five fixed inputs repeat one another;
+it does not select or remove features.
 ''',advanced=True)
 
 

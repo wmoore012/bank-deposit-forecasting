@@ -45,6 +45,14 @@ class ExperimentTests(unittest.TestCase):
             self.assertIn('Plotly.newPlot',html)
             self.assertIn('"responsive": false',html)
             self.assertNotIn('src="https://cdn.plot.ly/',html)
+            plotly_outputs=[
+                o for c in nb.cells for o in c.get('outputs',[])
+                if 'application/vnd.plotly.v1+json' in o.get('data',{})
+            ]
+            self.assertGreaterEqual(len(plotly_outputs),8)
+            for output in plotly_outputs:
+                self.assertIn('text/html',output.data)
+                self.assertTrue(output.data['application/vnd.plotly.v1+json']['data'])
     def test_histograms_remain_numeric_and_scatter_axes_match(self):
         out=ROOT/'growth_outputs/masterclass/charts'
         fig=json.loads((out/'target_full_growth.json').read_text())

@@ -1,0 +1,15 @@
+--- wm_notecards/charts.py
++++ wm_notecards/charts.py
+@@
+ import pandas as pd
+ import plotly.graph_objects as go
++import plotly.io as pio
+@@
+-    display(HTML(plot_shell_html(...)))
++    shell = plot_shell_html(...)
++    # HTML exports keep the styled WM card. VS Code selects its native Plotly
++    # MIME renderer, so scripts are not lost inside a sanitized HTML output.
++    bundle = pio.renderers["vscode"].to_mimebundle(fig.to_dict())
++    bundle["text/html"] = shell
++    display(bundle, raw=True)
+

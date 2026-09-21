@@ -65,3 +65,18 @@ not an official turnkey full-model training run. Pretraining overlap is unknown;
 chronological adaptation does not remove that limitation or repeated holdout reuse.
 Selection metadata, checkpoint revision, changed-weight checks, and complete predictions
 are saved. Local head weights and intermediate split exports are ignored under `.finetune/`.
+
+### Recruiter reading path (2026-09-21)
+
+Both editions now open with a project summary and give every section a plain-language
+preview. The source section states the 2013–2024 choice before its ordered reasons,
+defines all nine source columns before the first preview, and explains the 815 missing
+EQ values immediately after the pandas missingness output. A computed assertion confirms
+none of those EQ gaps belong to the selected domestic-bank/form population. Source blanks
+remain unknown. The 48 missing state labels are not model inputs.
+
+Both notebooks executed successfully in fresh kernels after adding the source checks.
+The subsequent summary edits changed Markdown only and preserved those outputs. Fifteen
+regression tests pass, including the source-population and lead-first checks. Desktop HTML
+inspection confirmed the ordered rationale, wrapped dictionary, and missingness card.
+Previously recorded narrow-screen verification limits still apply.

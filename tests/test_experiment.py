@@ -6,6 +6,24 @@ import pandas as pd
 import nbformat
 ROOT=Path(__file__).resolve().parents[1]
 class ExperimentTests(unittest.TestCase):
+    def test_lead_first_source_decisions(self):
+        for name in ['Masterclass', 'Submission']:
+            notebook = nbformat.read(ROOT / f'FDIC_Deep_Learning_{name}.ipynb', 4)
+            markdown = [c.source for c in notebook.cells if c.cell_type == 'markdown']
+            self.assertIn('Project in one minute', markdown[0])
+            self.assertTrue(all('In plain terms:' in cell for cell in markdown[1:]))
+            source = '\n'.join(c.source for c in notebook.cells)
+            self.assertLess(source.index('Read the column names before reading the numbers'), source.index('post_conversion.head()'))
+            self.assertIn('We chose 2013–2024', source)
+            self.assertIn('We do not replace source equity with zero', source)
+        raw = pd.read_csv(ROOT / 'data/fdic_financials_2013_2024.csv')
+        metadata = pd.read_csv(ROOT / 'data/fdic_reporting_2010_2024.csv')
+        joined = raw.merge(metadata, on=['CERT', 'REPDTE'], validate='one_to_one')
+        missing = joined.EQ.isna()
+        self.assertEqual(int(missing.sum()), 815)
+        eligible = joined.BKCLASS.isin(['N','NM','SM','SB','SI','SL']) & joined.CALLFORM.isin([31,41,51])
+        self.assertFalse((missing & eligible).any())
+
     def test_two_editions_agree_on_predictions(self):
         a=pd.read_csv(ROOT/'growth_outputs/masterclass/predictions.csv')
         b=pd.read_csv(ROOT/'growth_outputs/submission/predictions.csv')

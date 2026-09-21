@@ -372,23 +372,23 @@ preview_card(
 )
 ''')
 section('1 · Can fifteen years of reports tell one consistent story?', '''
-**Start with the 2013–2024 bank-quarter file.** Check its rows, columns, types,
-missing values, duplicate keys, and how the reporting population changes over time.
-The earlier reports stay in the deeper comparability audit after the conclusion.
+**We chose 2013–2024 for the main experiment.** The 2010–2012 reports stay in a separate audit. Here is how we decided:
+1. **Start with the same kind of report.** Some older institutions used a different reporting form. The FDIC documented their switch to Call Reports in 2012.
+2. **Check that the numbers mean the same thing.** Matching column names alone cannot prove that older forms measured all five financial inputs the same way. That historical mapping is still unverified.
+3. **Check the newer file.** Its 48 quarters match the corresponding rows in the longer file exactly. Starting in 2013 gives us a practical boundary after the reporting change.
+4. **Keep the older evidence.** We retain 2010–2012 for inspection, but do not use it to train this comparison. This is a cautious comparability choice, not proof that every older row is wrong.
 
-The source dictionary describes domestic deposits, assets, net loans, cash, and equity.
-The extract includes 5,738 form-100 reports in 2010–2011. The FDIC documents the
-[2012 conversion from Thrift Financial Reports to Call Reports](https://www.fdic.gov/news/inactive-financial-institution-letters/2012/fil12010.html).
-A five-field historical crosswalk has not been verified. The gate below records
-what was verified and what remains unresolved before choosing the modeling period.
+See the [FDIC's 2012 reporting conversion notice](https://www.fdic.gov/news/inactive-financial-institution-letters/2012/fil12010.html). The detailed receipts appear after the result; you already have the decision.
 ''',r'''
-# Look at the source columns before creating model features.
+# EXEMPLAR: analytical-question
+# Give the decision before the audit that supports it.
 question_card(
     title='Can reports from 2013 and 2024 live in one experiment?',
     theme=theme,
     body=(
-        'Start with the rows, columns, data types, missing values, duplicate keys, '
-        'quarter coverage, and the documented reporting break.'
+        'We use 2013–2024. Earlier reports cross a 2012 reporting-form change; '
+        'their five-field historical mapping remains unverified. The newer '
+        '48 quarters match the long file exactly.'
     ),
     kicker='Data history',
     chip_text='QUESTION',
@@ -419,6 +419,20 @@ recent_extract = pd.read_csv(ROOT / 'data/fdic_financials_2020_2024.csv')
 reporting = pd.read_csv(ROOT / 'data/fdic_reporting_2010_2024.csv')
 keys = ['CERT', 'REPDTE']
 
+# Teach the source vocabulary before asking the reader to inspect numbers.
+source_dictionary = pd.DataFrame([
+    ('REPDTE', 'Report date', 'The quarter-end date for this report'),
+    ('CERT', 'Institution ID', 'FDIC certificate; links reports for one institution'),
+    ('NAME', 'Institution name', 'Reported name; can change over time'),
+    ('STALP', 'State abbreviation', 'Location label; not a model input'),
+    ('DEPDOM', 'Domestic deposits', 'Deposits in domestic offices; USD thousands'),
+    ('ASSET', 'Total assets', 'Total reported assets; USD thousands'),
+    ('LNLSNET', 'Net loans and leases', 'Reported net loan and lease balance; USD thousands'),
+    ('CHBAL', 'Cash and balances due', 'Cash and balances due from depository institutions; USD thousands'),
+    ('EQ', 'Equity capital', 'Reported equity capital; USD thousands'),
+], columns=['Column', 'Plain name', 'Meaning and units'])
+table(source_dictionary, 'Read the column names before reading the numbers')
+# %% NOTEBOOK CELL
 # First contact with the data: size, sample rows, types, missingness, and keys.
 shape_receipt = pd.DataFrame(
     {
@@ -456,6 +470,26 @@ post_conversion.info(buf=info_buffer, memory_usage='deep')
 print(info_buffer.getvalue())
 # %% NOTEBOOK CELL
 post_conversion.isna().sum().sort_values(ascending=False)
+# %% NOTEBOOK CELL
+# Explain the missingness result while it is still on screen.
+source_audit = post_conversion.merge(reporting, on=keys, validate='one_to_one')
+missing_eq = source_audit['EQ'].isna()
+inside_population = (source_audit['BKCLASS'].isin(['N', 'NM', 'SM', 'SB', 'SI', 'SL'])
+                     & source_audit['CALLFORM'].isin([31, 41, 51]))
+assert not (missing_eq & inside_population).any()
+assert source_audit.loc[missing_eq, 'CALLFORM'].eq(2).all()
+preview_card(
+    title='Missing equity stays unknown; these reports are outside our population',
+    theme=theme,
+    body=f'The 2013–2024 source has {missing_eq.sum():,} missing EQ values. All occur on form 2; none belong to the domestic-bank/report-form group used for modeling.',
+    bullets=[
+        '1. A blank means unknown. We do not replace source equity with zero.',
+        '2. We select domestic-bank classes N, NM, SM, SB, SI, SL on forms 31, 41, 51. This eligibility rule removes these reports before modeling.',
+        '3. We do not borrow a domestic-bank median to invent equity for a different reporting group.',
+        f'4. STALP has {post_conversion.STALP.isna().sum():,} blanks. State is not one of the five inputs, so we leave those labels missing.',
+        '5. The later median imputer is fitted only on training features. It is a safeguard, not the treatment used for these source EQ gaps.',
+    ],
+)
 # %% NOTEBOOK CELL
 source_summary = post_conversion[
     ['DEPDOM', 'ASSET', 'LNLSNET', 'CHBAL', 'EQ']
@@ -3665,6 +3699,12 @@ wm_counterintuitive_card(
     ]
 
 
+SECTION_SUMMARIES = {'1 ·': 'We chose 2013–2024. First learn the column names, then see why older reports stay in an audit and how we handle missing values.', '2 ·': 'A forecast needs a real next-quarter answer. We keep comparable domestic-bank reports with neighboring quarters and positive balances, and count every exclusion.', '3 ·': 'We check when deposit declines happened and whether the same quarter of the year tends to repeat a pattern. Only training-period outcomes are used.', '4 ·': 'Five inputs describe bank size, cash, loans, equity, and recent deposit growth. Their distributions show what the model receives before any scaling.', '5 ·': 'The first dollar-based score mostly rewarded choosing large banks. A size-only rule nearly matched the neural network, motivating a proportional-growth target.', '6 ·': 'We predict log growth so very small starting balances do not create enormous training targets. The same bank appears in two representations; predictions are converted back to percentage growth for scoring.', '7 ·': 'Training comes first, validation comes later, and 2024 comes last. A timeline shows the gaps that keep future outcomes out of earlier training.', '8 ·': 'A network learns by adjusting weights. One small calculation shows how an update reduces a mistake before we examine the full network.', '9 ·': 'We fit four forecasts and use validation to choose settings. The learning curve shows when more training stops helping.', '10 ·': 'Zero growth has the lowest average absolute error; the small MLP has the lowest RMSE. We compare both scores because large mistakes receive extra weight in RMSE.', '11 ·': 'The models make larger mistakes on the weakest-growth banks. These after-the-fact groups explain errors; they cannot prove advance warning.', '12 ·': 'With room to review only 10% of banks, Ridge leads in March and June and the MLP leads in September. Both find weak-growth banks more often than the roughly 10% random reference.', '13 ·': 'Anomaly detection could flag unusual reports for review. It answers a different question from forecasting, and this project has not tested its review-list quality.', '14 ·': 'The simple baseline remains hard to beat. The MLP improves RMSE but does not establish dependable added value; review-list usefulness needs its own evidence.', 'Bonus · Can': 'We tested TimesFM and Chronos on every evaluation row. Neither zero-shot approach beat the best core baselines; one very large TimesFM miss dominates its RMSE.', 'Bonus · Does': 'We fine-tuned both forecasting heads using earlier data and selected checkpoints with validation. Neither adapted model beat the core baselines on the reused 2024 evaluation.', 'Deeper check ·': 'We kept 2010–2012 out of the main comparison because reporting definitions still need a historical mapping. Here are the counts and reporting-form checks behind that choice.', 'Deeper lesson · Does': 'Changing starting weights changes the validation score. Three fixed seeds show that sensitivity without choosing a winner from 2024.', 'Deeper lesson · How': 'We resample whole banks to see how much the MLP–Ridge difference varies. The interval crosses zero, so the small observed advantage is uncertain.', 'Deeper lesson · Can': 'A blank, a stored zero, and a nonzero deposit value mean different things. We keep these uninsured-deposit columns out until their reporting definitions are verified.', 'Appendix · Rebuild': 'This reproduces the original dollar-capture experiment. The network adds only 0.27 percentage points over selecting banks by size.', 'Appendix · Keep': 'The original experiment preserves useful lessons about probabilities, review capacity, and dollar outcomes. Use these as deeper questions after finishing the core comparison.'}
+PROJECT_SUMMARY = '**Project in one minute.** Can a bank’s reports help us predict next-quarter deposit growth and choose which banks to review? We train on 214,425 bank-quarter records and evaluate 13,532 later records. Zero growth wins average absolute error; the small neural network wins RMSE, which gives large misses extra weight. Ridge and the neural network identify weak-growth banks more often than random selection in three historical quarters. This is a research prototype, with a reused 2024 holdout and no measured savings.\n\n**What you will see:** data definitions and cleaning decisions → time patterns → five inputs and a growth target → time-separated training → forecast errors → a capacity-limited review list. Pretrained models, fine-tuning, and deeper audits follow the main conclusion.\n\n**Tools:** Python, pandas, scikit-learn, TensorFlow, Plotly, Jupyter, and uv; PyTorch and MLX for the foundation-model extensions.'
+
+def section_summary(title):
+    return next((text for prefix, text in SECTION_SUMMARIES.items() if title.startswith(prefix)), '')
+
 def build():
     arrange_story()
     for edition,name in [('masterclass','FDIC_Deep_Learning_Masterclass.ipynb'),('submission','FDIC_Deep_Learning_Submission.ipynb')]:
@@ -3672,9 +3712,10 @@ def build():
         for index,(title,prose,source,advanced) in enumerate(sections):
             if advanced and edition=='submission':continue
             # Keep the same analysis code in both deliverables; reduce teaching prose only.
-            if edition=='submission' and index not in [0]:
+            if edition=='submission' and index not in [0, 1]:
                 prose=prose.split('\n\n')[0]
-            cells.append(nbf.v4.new_markdown_cell(('# ' if index==0 else '## ')+title+'\n\n'+prose))
+            lead = PROJECT_SUMMARY if index == 0 else '**In plain terms:** ' + section_summary(title)
+            cells.append(nbf.v4.new_markdown_cell(('# ' if index==0 else '## ')+title+'\n\n'+lead+'\n\n'+prose))
             if source:
                 if index==0:
                     source=f"NOTEBOOK_EDITION = {edition!r}\n"+source

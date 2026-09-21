@@ -1,17 +1,30 @@
-# Can a small neural network forecast bank deposit growth?
+# Bank Deposit Forecasting
 
-Open **FDIC_Deep_Learning_Masterclass.ipynb** for the teaching notebook, or
-**FDIC_Deep_Learning_Submission.ipynb** for the concise professor version.
-Both run the same five-feature regression experiment with visible code.
-They follow the same reading route: business question, 2013-onward EDA and time
-pattern, five inputs, target choice, chronological split, model fit, error
-comparison, weak-bank ranking, and conclusion. The masterclass keeps the worked
-arithmetic and teaching cards; both place deeper audits after the core answer.
+A reproducible research project testing whether machine learning improves next-quarter deposit forecasts and helps prioritize a limited bank-review queue.
 
-The comparison is zero growth → persistence → Ridge → a 5–32–16–1 MLP.
-Errors use percentage points. The 2024 evaluation is explicitly a **reused historical holdout**.
-The original `Assign1.ipynb` is unchanged; the old two-head masterclass and its
-results live in `experiments/experiment_0/`.
+## The result in 30 seconds
+
+- **The simple baseline matters:** predicting zero growth has the lowest mean absolute error, **3.601 percentage points**.
+- **The neural network helps on a different metric:** its **6.429 pp RMSE** is 4.3% below zero growth, but does not establish a dependable overall advantage.
+- **Review capacity changes the question:** selecting 10% of banks using Ridge or MLP predictions identifies realized bottom-decile banks with **16.7%–24.7% precision** across three quarters, versus roughly 10% from random selection.
+- **More complex is not automatically better:** zero-shot and forecast-head-fine-tuned TimesFM and Chronos models did not beat the best core baselines in this experiment.
+
+**Scope:** 214,425 training bank-quarters; 13,532 reused 2024 evaluation rows. Research prototype, no measured operational savings, no claim that unusual reports prove distress.
+
+**Stack:** Python · pandas · scikit-learn · TensorFlow · Plotly · Jupyter · uv. Foundation-model extensions use PyTorch and MLX.
+
+## Start here
+
+1. [Concise experiment](FDIC_Deep_Learning_Submission.ipynb): data, model, results, and decision.
+2. [Detailed walkthrough](FDIC_Deep_Learning_Masterclass.ipynb): worked examples, explanatory cards, pretrained models, and fine-tuning.
+3. [Validation record](VALIDATION.md): checks, limitations, and reproducibility.
+
+## Data decisions before modeling
+
+1. Use **2013–2024** after the 2012 reporting conversion. Older forms still need a verified field-by-field mapping.
+2. Keep **2010–2012** in the audit; matching column names alone cannot prove comparable definitions.
+3. Preserve the **815 missing source EQ values** as unknown. They all occur outside the domestic-bank/form eligibility group and are excluded by that population rule, not filled with zero.
+4. Leave missing state labels alone because state is not a model input. Fit any feature-imputation parameters on training data only.
 
 ## Run
 

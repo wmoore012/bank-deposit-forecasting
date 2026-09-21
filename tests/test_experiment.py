@@ -1,5 +1,5 @@
 """Evidence tests run against freshly executed notebook outputs."""
-import json, unittest
+import base64, json, unittest
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -44,6 +44,7 @@ class ExperimentTests(unittest.TestCase):
             nb=nbformat.read(ROOT/f'FDIC_Deep_Learning_{name}.ipynb',as_version=4)
             source='\n'.join(c.source for c in nb.cells if c.cell_type=='code')
             self.assertIn('justify-content: center !important',source)
+            self.assertIn('.wm-table-card:has(td.col4)',source)
             for c in nb.cells:
                 if c.cell_type=='code':
                     self.assertIsNotNone(c.execution_count)
@@ -56,8 +57,20 @@ class ExperimentTests(unittest.TestCase):
             self.assertIn('justify-content:center',html)
     def test_histograms_remain_numeric_and_scatter_axes_match(self):
         out=ROOT/'growth_outputs/masterclass/charts'
-        fig=json.loads((out/'target_full_growth.json').read_text())
+        fig=json.loads((out/'target_growth_side_by_side.json').read_text())
         self.assertNotEqual(fig['layout']['xaxis'].get('type'),'category')
+        self.assertEqual(len(fig['data']),2)
+        small=json.loads((out/'small_denominator_growth.json').read_text())
+        self.assertEqual(small['layout']['xaxis']['type'],'log')
+        self.assertEqual(small['layout']['yaxis']['type'],'log')
+        extreme=small['data'][1]
+        xs=np.frombuffer(base64.b64decode(extreme['x']['bdata']),dtype='f8')
+        ys=np.frombuffer(base64.b64decode(extreme['y']['bdata']),dtype='f8')
+        for annotation, x, y in zip(
+            small['layout']['annotations'], xs, ys
+        ):
+            self.assertAlmostEqual(annotation['x'], np.log10(x))
+            self.assertAlmostEqual(annotation['y'], np.log10(y))
         fig=json.loads((out/'actual_predicted.json').read_text())
         self.assertEqual(fig['layout']['hoverlabel']['bgcolor'],'white')
         self.assertEqual(fig['layout']['hoverlabel']['font']['color'],'#182E3A')
@@ -65,9 +78,11 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(fig['layout']['xaxis']['range'],fig['layout']['yaxis']['range'])
 
         comparison=json.loads((out/'comparison.json').read_text())
-        self.assertTrue(all(trace['type']=='bar' for trace in comparison['data']))
-        for trace in comparison['data']:
-            self.assertEqual(trace['marker']['color'].count('#007F89'),1)
+        self.assertEqual(len(comparison['data']),8)
+        self.assertTrue(all(trace['type']=='scatter' for trace in comparison['data']))
+        winners=[trace for trace in comparison['data'] if trace['marker']['color']=='#007F89']
+        self.assertEqual(len(winners),2)
+        self.assertEqual({trace['y'][0] for trace in winners},{'Zero growth','MLP'})
 
     def test_eda_inspection_and_time_series_are_saved(self):
         nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
@@ -84,7 +99,7 @@ class ExperimentTests(unittest.TestCase):
             self.assertIn(field, json.dumps(fig['layout']))
 
         html='\n'.join(output.get('data',{}).get('text/html','') for cell in nb.cells for output in cell.get('outputs',[]))
-        self.assertIn('Largest training changes: balances in USD thousands', html)
+        self.assertIn('Six largest training changes', html)
         self.assertIn('What do the five training inputs look like?', html)
         self.assertNotIn('214,425.0000', html)
 
@@ -95,6 +110,12 @@ class ExperimentTests(unittest.TestCase):
                          {'Deposits fell','No decline'})
         decline=json.loads((charts/'decline_share_time.json').read_text())
         self.assertEqual(decline['data'][0]['mode'],'lines+markers')
+        seasonality=pd.read_csv(ROOT/'growth_outputs/masterclass/training_seasonality.csv')
+        self.assertEqual(set(seasonality.Quarter),{'Q1','Q2','Q3','Q4'})
+        self.assertLessEqual(seasonality.Year.max(),2022)
+        self.assertGreaterEqual(seasonality.Year.min(),2013)
+        self.assertEqual(seasonality['Quarter position'].nunique(),len(seasonality))
+        self.assertLess(box['layout']['xaxis']['range'][1],1)
 
     def test_diagnostic_charts_answer_their_questions(self):
         out=ROOT/'growth_outputs/masterclass/charts'
@@ -104,10 +125,34 @@ class ExperimentTests(unittest.TestCase):
         self.assertTrue(all(trace.get('mode')=='lines+markers+text' for trace in tail['data']))
 
         ranking=json.loads((out/'ranking.json').read_text())
-        self.assertTrue(all(trace['type']=='bar' for trace in ranking['data']))
-        self.assertEqual(ranking['layout']['yaxis']['range'],[0,0.31])
-        labels=[label for trace in ranking['data'] for label in trace['text']]
-        self.assertTrue(all(' of ' in label for label in labels))
+        self.assertEqual(len(ranking['data']),3)
+        self.assertTrue(all(trace['type']=='scatter' for trace in ranking['data']))
+        self.assertTrue(any(shape['x0']==.1 and shape['x1']==.1
+                            for shape in ranking['layout']['shapes']))
+        self.assertTrue(all(len(trace['customdata'])==3 for trace in ranking['data']))
+
+    def test_conclusion_and_main_flow_do_not_duplicate_evidence(self):
+        out=ROOT/'growth_outputs/masterclass'
+        scores=pd.read_csv(out/'historical_scores.csv').set_index('Model')
+        self.assertEqual(scores['MAE (pp)'].idxmin(),'Zero growth')
+        self.assertEqual(scores['RMSE (pp)'].idxmin(),'MLP')
+        quantiles=pd.read_csv(out/'large_error_quantiles.csv').set_index('Model')
+        self.assertLess(quantiles.loc['MLP'].iloc[0],quantiles.loc['Zero growth'].iloc[0])
+        summary=json.loads((out/'run_summary.json').read_text())
+        self.assertIn('did not improve typical forecast error',summary['conclusion'])
+        self.assertIn('lowest RMSE',summary['conclusion'])
+
+        nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
+        titles=[cell.source.splitlines()[0] for cell in nb.cells if cell.cell_type=='markdown']
+        conclusion_index=next(i for i,title in enumerate(titles) if 'What did we learn' in title)
+        audit_index=next(i for i,title in enumerate(titles) if 'What changed in older reports' in title)
+        self.assertLess(conclusion_index,audit_index)
+        core_source='\n'.join(cell.source for cell in nb.cells[:next(
+            i for i,cell in enumerate(nb.cells) if cell.cell_type=='markdown'
+            and 'What did we learn' in cell.source
+        )] if cell.cell_type=='code')
+        self.assertNotIn("table(\n    metrics,",core_source)
+        self.assertNotIn("table(\n    ranking_display,",core_source)
 
     def test_saved_tables_keep_human_reading_order(self):
         out=ROOT/'growth_outputs/masterclass'

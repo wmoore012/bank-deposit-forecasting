@@ -3,6 +3,10 @@
 Open **FDIC_Deep_Learning_Masterclass.ipynb** for the teaching notebook, or
 **FDIC_Deep_Learning_Submission.ipynb** for the concise professor version.
 Both run the same five-feature regression experiment with visible code.
+They follow the same reading route: business question, 2013-onward EDA and time
+pattern, five inputs, target choice, chronological split, model fit, error
+comparison, weak-bank ranking, and conclusion. The masterclass keeps the worked
+arithmetic and teaching cards; both place deeper audits after the core answer.
 
 The comparison is zero growth → persistence → Ridge → a 5–32–16–1 MLP.
 Errors use percentage points. The 2024 evaluation is explicitly a **reused historical holdout**.

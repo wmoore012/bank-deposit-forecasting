@@ -24,14 +24,14 @@ Our quarterly balances describe report-to-report changes. A bank run requires mu
 The original experiment asked where decline dollars would concentrate. We preserve that discovery,
 then ask how large each change was relative to the bank’s own deposits.
 
-**Reading route:** trust the rows → diagnose dollar size → choose the target → protect time → train → compare → inspect weak outcomes.
+**Reading route:** inspect the banks → check the time pattern → define one prediction → protect time → train → compare → inspect weak outcomes.
 All modeling code stays visible. Advanced lessons follow the core answer.
 
 **Evidence boundary:** 2024 was already examined in the original project. It is a reused historical holdout.
 Report publication times and historical vintages are unavailable. Treat this as a retrospective forecast study.
 The same banks may appear in earlier and later periods.
 ''',r'''
-# EXEMPLAR: bootstrap
+# Keep imports, frozen settings, and rendering tools together.
 import os, sys, json, hashlib, platform, time, html, textwrap, io
 from pathlib import Path
 os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL','2')
@@ -124,6 +124,33 @@ display(
             margin-left: auto !important;
             margin-right: auto !important;
         }
+        .wm-micro-rail {
+            max-width: 860px !important;
+            grid-auto-flow: row !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            grid-auto-columns: auto !important;
+            overflow-x: visible !important;
+        }
+        .wm-micro-rail .wm-micro-card:last-child {
+            grid-column: 1 / -1;
+        }
+        @media (max-width: 720px) {
+            .wm-micro-rail {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+            .wm-micro-rail .wm-micro-card:last-child {
+                grid-column: auto;
+            }
+            .wm-table-card:has(td.col4) {
+                overflow-x: auto !important;
+            }
+            .wm-table-card:has(td.col4) table {
+                min-width: 700px !important;
+            }
+            .wm-table-card:has(td.col6) table {
+                min-width: 780px !important;
+            }
+        }
         </style>
         """
     )
@@ -133,6 +160,8 @@ display(
 display(HTML('<script>' + get_plotlyjs() + '</script>'))
 
 
+# %% NOTEBOOK CELL
+# Shared display helpers keep all plots centered and all exact receipts wrapped.
 def table(frame, title, formats=None, wrap_columns=None):
     """Render a dataframe with the same centered teaching-card treatment."""
     default_formats = {
@@ -157,6 +186,21 @@ def table(frame, title, formats=None, wrap_columns=None):
         if pd.api.types.is_string_dtype(frame[column])
     }
     default_wrap.update(wrap_columns or {})
+    styled = styled.set_table_styles(
+        [
+            {
+                'selector': f'td.col{frame.columns.get_loc(column)}',
+                'props': [
+                    ('white-space', 'normal !important'),
+                    ('overflow-wrap', 'anywhere !important'),
+                    ('word-break', 'normal !important'),
+                    ('text-align', 'left'),
+                ],
+            }
+            for column in default_wrap
+        ],
+        overwrite=False,
+    )
     wm_render_styler(
         styled,
         theme=theme,
@@ -183,7 +227,8 @@ def ordered_rows(frame, columns, category_orders=None, ascending=True):
     ).reset_index(drop=True)
 
 
-def chart(fig, name, title, subtitle='', height=540):
+# %% NOTEBOOK CELL
+def chart(fig, name, title, subtitle='', height=540, legend_y=-0.24):
     """Apply one visual system and one centered renderer to every chart."""
     style_fig_wm(
         fig,
@@ -233,12 +278,15 @@ def chart(fig, name, title, subtitle='', height=540):
             ),
         ),
         legend=dict(
-            y=-0.24,
+            y=legend_y,
             yanchor='top',
+            x=0.5,
+            xanchor='center',
+            orientation='h',
             font=dict(size=14, family='Inter, Arial, sans-serif'),
             title_text='',
         ),
-        margin=dict(l=85, r=45, t=155, b=120),
+        margin=dict(l=85, r=45, t=155, b=155 if legend_y < -0.24 else 120),
         paper_bgcolor='white',
         plot_bgcolor='white',
     )
@@ -287,24 +335,46 @@ def chart(fig, name, title, subtitle='', height=540):
         figure_width=860,
     )
     display(HTML(shell))
-def takeaway(title,body,metric=None):
-    takeaway_card(title=title,body=body,metric=metric,theme=theme)
-def scores(y,pred):
-    return {'MAE (pp)':100*mean_absolute_error(y,pred),
-            'RMSE (pp)':100*np.sqrt(mean_squared_error(y,pred))}
-def log_scores(y_log,pred_log):
+
+
+# %% NOTEBOOK CELL
+def takeaway(title, body, metric=None):
+    """Show the answer immediately after its evidence."""
+    takeaway_card(title=title, body=body, metric=metric, theme=theme)
+
+
+def scores(actual, predicted):
+    """Report ordinary-growth errors in percentage points."""
+    return {
+        'MAE (pp)': 100 * mean_absolute_error(actual, predicted),
+        'RMSE (pp)': 100 * np.sqrt(mean_squared_error(actual, predicted)),
+    }
+
+
+def log_scores(y_log, pred_log):
     """Score log-growth forecasts in ordinary percentage-point units."""
-    return scores(np.expm1(y_log),np.expm1(pred_log))
-preview_card(title='Can the network earn its extra complexity?',theme=theme,
-    body='Every model gets the same dates and outcomes. We will judge the neural network by the forecast errors it reduces.',
-    bullets=['One row: one institution at one reporting quarter.',
-             'One target: next-quarter domestic deposit growth.',
-             'One honest comparison: simple rules, Ridge, and a small MLP.'])
+    return scores(np.expm1(y_log), np.expm1(pred_log))
+
+
+# %% NOTEBOOK CELL
+preview_card(
+    title='Can the network earn its extra complexity?',
+    theme=theme,
+    body=(
+        'Every model gets the same dates and outcomes. We will judge the '
+        'neural network by the forecast errors it reduces.'
+    ),
+    bullets=[
+        'One row: one institution at one reporting quarter.',
+        'One target: next-quarter domestic deposit growth.',
+        'One honest comparison: simple rules, Ridge, and a small MLP.',
+    ],
+)
 ''')
 section('1 · Can fifteen years of reports tell one consistent story?', '''
-**First check whether the older reports mean the same thing.** The long extract already exists.
-We check its keys, all 60 quarters, missingness, and exact agreement with the original five-year extract.
-Then we check the reporting context. A field with the same name can still cross a reporting change.
+**Start with the 2013–2024 bank-quarter file.** Check its rows, columns, types,
+missing values, duplicate keys, and how the reporting population changes over time.
+The earlier reports stay in the deeper comparability audit after the conclusion.
 
 The source dictionary describes domestic deposits, assets, net loans, cash, and equity.
 The extract includes 5,738 form-100 reports in 2010–2011. The FDIC documents the
@@ -312,7 +382,7 @@ The extract includes 5,738 form-100 reports in 2010–2011. The FDIC documents t
 A five-field historical crosswalk has not been verified. The gate below records
 what was verified and what remains unresolved before choosing the modeling period.
 ''',r'''
-# EXEMPLAR: missingness-evidence
+# Look at the source columns before creating model features.
 question_card(
     title='Can reports from 2013 and 2024 live in one experiment?',
     theme=theme,
@@ -610,7 +680,7 @@ The first bank contributes 100 times as many decline dollars despite its smaller
 Reproduce the old eligibility and training-size boundaries before quoting the old concentration.
 The archived masterclass preserves the two-head network, PR/calibration lessons, and review-capacity analysis.
 ''',r'''
-# EXEMPLAR: counterintuitive-boundary
+# Test the simple size explanation before crediting the old network.
 question_card(
     title='Could a model look smart by learning bank size?',
     theme=theme,
@@ -826,7 +896,7 @@ All 1,018 missing equity values in the long extract occur on form 2, across clas
 Keep the primary population to insured domestic-bank classes N, NM, SM, SB, SI, and SL
 using forms 31, 41, or 51. This avoids filling foreign-branch structural gaps with a domestic-bank median.
 ''',r'''
-# EXEMPLAR: decision-ledger
+# Decide which bank-quarters can receive a measured outcome.
 question_card(
     title='Which bank-quarters have a real next-quarter answer?',
     theme=theme,
@@ -925,6 +995,7 @@ def add_model_fields(frame):
     return result
 
 
+# %% NOTEBOOK CELL
 # Merge reporting metadata before building the bank timeline.
 panel = raw.merge(
     reporting,
@@ -986,6 +1057,7 @@ panel.loc[
     unobserved_columns,
 ].to_csv(OUT / 'unobserved_outcomes.csv', index=False)
 
+# %% NOTEBOOK CELL
 # The log-growth experiment requires positive balances in all three quarters.
 domestic_classes = ['N', 'NM', 'SM', 'SB', 'SI', 'SL']
 comparable_forms = [31, 41, 51]
@@ -1026,19 +1098,6 @@ assert len(panel) - len(rows) == eligibility_ledger['Removed'].sum()
 
 table(eligibility_ledger, 'Every exclusion has a count')
 
-fig = px.bar(
-    eligibility_ledger.loc[eligibility_ledger['Rule'].ne('All source rows')],
-    x='Removed',
-    y='Rule',
-    orientation='h',
-    text='Removed',
-    color_discrete_sequence=['#AF7721'],
-)
-fig.update_traces(texttemplate='%{text:,}', textposition='outside')
-fig.update_layout(margin=dict(l=280, r=105, t=110, b=65))
-chart(fig, 'eligibility', 'Which eligibility checks remove rows?',
-      'Each count is incremental; the table keeps the running population')
-
 takeaway(
     'The forecasting rows have three consecutive positive balances',
     (
@@ -1057,7 +1116,7 @@ validation predictor dates; validation outcomes precede the historical evaluatio
 Banks can appear in more than one period. The evaluation therefore covers later quarters for the monitored
 population; it does not measure performance on a completely new set of institutions.
 ''',r'''
-# EXEMPLAR: quality-check
+# Check the date boundaries before fitting any model.
 question_card(
     title='Has any future quarter leaked into training?',
     theme=theme,
@@ -1167,10 +1226,11 @@ Dollar change emphasizes funding magnitude. Percentage growth measures movement 
 Log growth describes multiplicative movement and requires both deposit balances to be positive.
 A zero next balance is −100% growth but has no finite log growth.
 
-First inspect the full training distributions. Then zoom into the middle 98% for readability.
-That zoom changes the chart window only. The 2013–2022 evidence will decide whether ordinary or log growth enters the model.
+The paired histograms show the middle 98% of the training distribution; their titles
+keep the full-data maxima visible. The next scatter shows what tiny starting balances
+do to ordinary percentage growth. These displays use the 2013–2022 training period.
 ''',r'''
-# EXEMPLAR: formula-card
+# Work one small change by hand before comparing training targets.
 question_card(
     title='What should one prediction mean?',
     theme=theme,
@@ -1215,49 +1275,14 @@ def summarize_target(series, label, multiplier=1):
     }
 
 
-def show_target_distribution(series, label, file_stub, multiplier=1):
-    """Show the full range first, followed by a clearly labeled central view."""
-    values = series.dropna().mul(multiplier)
-
-    counts, bins = np.histogram(values, bins=70)
-    full_range = go.Figure(
-        go.Bar(
-            x=(bins[:-1] + bins[1:]) / 2,
-            y=counts,
-            width=np.diff(bins) * 0.98,
-            marker_color='#007F89',
-        )
-    )
-    full_range.update_xaxes(title=label)
-    full_range.update_yaxes(title='Bank-quarter count', type='log')
-    chart(
-        full_range,
-        f'target_full_{file_stub}',
-        f'How far does {label.lower()} extend?',
-        'Full training range; logarithmic count axis',
-    )
-
-    lower, upper = values.quantile([0.01, 0.99])
-    central = values.between(lower, upper)
-
-    central_view = px.histogram(
-        x=values.loc[central],
-        nbins=50,
-        color_discrete_sequence=['#007F89'],
-    )
-    central_view.update_layout(bargap=0.02)
-    central_view.update_xaxes(title=label)
-    central_view.update_yaxes(title='Bank-quarter count')
-    chart(
-        central_view,
-        f'target_middle_{file_stub}',
-        f'Where do most {label.lower()} values sit?',
-        f'Chart window: 1st–99th percentiles; {(~central).sum():,} values remain outside the view',
-    )
+def central_target_view(values):
+    """Return the untouched values inside a display-only 1st–99th-percentile window."""
+    low, high = values.quantile([0.01, 0.99])
+    return values.loc[values.between(low, high)]
 
 
 # %% NOTEBOOK CELL
-# Each target answers a different business question, so inspect them separately.
+# All three summaries use only training rows. The model choice comes later.
 target_specs = [
     ('Dollar change (USD million)', 'dollar_change_m', 1),
     ('Signed growth (%)', 'growth', 100),
@@ -1273,13 +1298,106 @@ for target_label, column, multiplier in target_specs:
             multiplier=multiplier,
         )
     )
-    show_target_distribution(
-        train[column],
-        target_label,
-        file_stub=column,
-        multiplier=multiplier,
-    )
 
+ordinary_percent = 100 * train['growth']
+log_values = train['log_growth']
+fig = make_subplots(
+    rows=1,
+    cols=2,
+    subplot_titles=[
+        f'Ordinary growth · max {ordinary_percent.max():,.0f}%',
+        f'Log growth · max {log_values.max():.2f}',
+    ],
+    horizontal_spacing=0.16,
+)
+for column, values, color in [
+    (1, ordinary_percent, '#AF7721'),
+    (2, log_values, '#007F89'),
+]:
+    central = central_target_view(values)
+    fig.add_trace(
+        go.Histogram(x=central, nbinsx=42, marker_color=color, showlegend=False),
+        row=1,
+        col=column,
+    )
+fig.update_xaxes(title='Next-quarter growth (%)', row=1, col=1)
+fig.update_xaxes(title='Log growth', row=1, col=2)
+fig.update_yaxes(title='Bank-quarter count', row=1, col=1)
+fig.update_layout(bargap=0.02)
+chart(
+    fig,
+    'target_growth_side_by_side',
+    'One change, two very different numerical scales',
+    'Training rows; each panel shows its 1st–99th-percentile window; maxima use the full data',
+    height=570,
+)
+
+# %% NOTEBOOK CELL
+# Tiny starting balances create enormous ordinary percentages. Sample the
+# background for display speed, then include and label every top-five case.
+positive_growth = train.loc[train['growth'].gt(0)].copy()
+largest_growth = positive_growth.nlargest(5, 'growth')
+background = positive_growth.drop(index=largest_growth.index).sample(
+    n=min(8000, len(positive_growth) - len(largest_growth)),
+    random_state=SEED,
+)
+fig = go.Figure()
+fig.add_trace(go.Scattergl(
+    x=background['DEPDOM'] / 1000,
+    y=100 * background['growth'],
+    mode='markers',
+    name='Other positive-growth rows',
+    marker=dict(color='#A5B5BC', size=5, opacity=0.22),
+    hovertemplate='Starting deposits: $%{x:,.2f}M<br>Growth: %{y:,.1f}%<extra></extra>',
+))
+fig.add_trace(go.Scatter(
+    x=largest_growth['DEPDOM'] / 1000,
+    y=100 * largest_growth['growth'],
+    mode='markers',
+    text=largest_growth['NAME'].str.title(),
+    name='Five largest percentages',
+    marker=dict(color='#AF7721', size=11),
+    hovertemplate='%{text}<br>Starting deposits: $%{x:,.2f}M<br>Growth: %{y:,.1f}%<extra></extra>',
+))
+
+# Leader lines separate five unusually close labels without hiding the dots.
+short_names = [
+    'Schwab Signature',
+    'Ameriprise',
+    'Mitsubishi UFJ',
+    'Wells Fargo Financial',
+    'Stifel Trust',
+]
+label_offsets = [(135, -55), (45, -92), (-55, -60), (165, 5), (-35, 48)]
+for (_, bank), name, (x_offset, y_offset) in zip(
+    largest_growth.iterrows(), short_names, label_offsets
+):
+    fig.add_annotation(
+        # Plotly annotations use log coordinates on logarithmic axes.
+        x=np.log10(bank['DEPDOM'] / 1000),
+        y=np.log10(100 * bank['growth']),
+        text=name,
+        ax=x_offset,
+        ay=y_offset,
+        arrowhead=2,
+        arrowsize=.6,
+        arrowwidth=1,
+        arrowcolor='#AF7721',
+        font={'size': 12, 'color': '#6B4A1E'},
+        bgcolor='rgba(255,255,255,.9)',
+    )
+fig.update_xaxes(type='log', title='Starting domestic deposits (USD million, log scale)')
+fig.update_yaxes(type='log', title='Positive next-quarter growth (%, log scale)')
+chart(
+    fig,
+    'small_denominator_growth',
+    'Why can ordinary growth reach 522,646%?',
+    f'{len(background):,} sampled background rows plus the five largest; negative and zero growth remain in the experiment',
+    height=640,
+)
+
+# %% NOTEBOOK CELL
+# The table is an exact-value receipt after the two visual explanations.
 target_summary = pd.DataFrame(target_summary)
 target_summary = ordered_rows(
     target_summary,
@@ -1293,7 +1411,7 @@ target_summary = ordered_rows(
     },
 )
 table(
-    target_summary,
+    target_summary[['Target', '1st percentile', 'Median', '99th percentile', 'Maximum']],
     'Training targets: full-range arithmetic',
     {
         column: '{:,.4f}'
@@ -1329,6 +1447,7 @@ wm_counterintuitive_card(
     chip_text='LOOK TWICE',
 )
 
+# %% NOTEBOOK CELL
 # Preserve the largest changes for audit. Extreme does not mean erroneous.
 extreme_columns = [
     'CERT',
@@ -1341,7 +1460,7 @@ extreme_columns = [
     'next_name',
     'next_event',
 ]
-extreme_index = train['growth'].abs().nlargest(12).index
+extreme_index = train['growth'].abs().nlargest(6).index
 extremes = train.loc[extreme_index, extreme_columns].copy()
 extremes['Name changed'] = extremes['NAME'].ne(extremes['next_name'])
 
@@ -1362,15 +1481,24 @@ shown_extremes = shown_extremes.assign(
     ['_absolute_growth', 'CERT'],
     ascending=[False, True],
 ).drop(columns='_absolute_growth')
+shown_extremes = shown_extremes.drop(
+    columns=['CERT', 'Name changed']
+).rename(columns={
+    'NAME': 'Bank',
+    'date': 'Report date',
+    'DEPDOM': 'Start (USD k)',
+    'next_deposits': 'Next (USD k)',
+    'growth': 'Growth',
+})
 table(
     shown_extremes,
-    'Largest training changes: balances in USD thousands',
+    'Six largest training changes · balances in USD thousands',
     {
-        'DEPDOM': '{:,.0f}',
-        'next_deposits': '{:,.0f}',
-        'growth': '{:+.2%}',
+        'Start (USD k)': '{:,.0f}',
+        'Next (USD k)': '{:,.0f}',
+        'Growth': '{:+.2%}',
     },
-    wrap_columns={'NAME': 340},
+    wrap_columns={'Bank': 280},
 )
 
 extremes.to_csv(OUT / 'extreme_review.csv', index=False)
@@ -1378,6 +1506,18 @@ panel.loc[
     panel['CERT'].isin(extremes['CERT']),
     ['CERT', 'REPDTE', 'NAME', 'date', 'DEPDOM', 'ASSET', 'ACTEVT', 'CALLFORM'],
 ].to_csv(OUT / 'extreme_bank_histories.csv', index=False)
+
+wm_formula_card(
+    title='The same bank-quarter, a learnable scale',
+    theme=theme,
+    items=[
+        {'label': 'Starting deposits', 'fallback': 'USD 1.15 million'},
+        {'label': 'Next quarter', 'fallback': 'USD 6.01 billion'},
+        {'label': 'Ordinary growth', 'fallback': '(6,011,577 − 1,150) / 1,150 = 522,645.83%'},
+        {'label': 'Training target', 'fallback': 'y = ln(D next / D now) = 8.56'},
+        {'label': 'Interpret a forecast', 'fallback': 'ordinary growth (%) = 100 × (exp(predicted y) − 1)'},
+    ],
+)
 
 TARGET = 'log_growth'
 target_decision = {
@@ -1396,11 +1536,12 @@ target_decision = {
 (OUT / 'target_decision.json').write_text(json.dumps(target_decision, indent=2))
 
 takeaway(
-    'Model log growth; report error in percentage points',
+    'Train on log growth; translate forecasts back to percentage growth',
     (
         'The decision comes from the training distribution and the meaning of the '
-        'target. Every eligible row remains in the experiment, including the '
-        'small-balance cases that stretch ordinary percentage growth.'
+        'target. No row with valid positive current and next-quarter deposits '
+        'is removed simply because its growth is extreme. A same-name report '
+        'does not establish why a bank’s balance changed.'
     ),
 )
 ''')
@@ -1421,7 +1562,7 @@ A gradient tells us how a small weight change affects loss. Adam uses those grad
 A batch of 512 rows gives one update. An epoch is one pass through training rows.
 Early stopping keeps the weights from the best validation-loss epoch.
 ''',r'''
-# EXEMPLAR: formula-card
+# Start with one neuron before showing the full network.
 question_card(
     title='What changes when a neural network learns?',
     theme=theme,
@@ -1472,7 +1613,7 @@ Ridge strength is selected from a fixed grid using validation MAE. The MLP stops
 MAE describes the average absolute miss. RMSE gives large misses extra weight.
 A forecast of +2% when reality is −3% misses by **5 percentage points**.
 ''',r'''
-# EXEMPLAR: decision-ledger
+# Give each input a name, calculation, and reporting date.
 question_card(
     title='What do the five inputs look like before preprocessing?',
     theme=theme,
@@ -1516,6 +1657,13 @@ feature_summary = (
 feature_summary = feature_summary[
     ['Feature', 'count', 'mean', '1%', '50%', '99%', 'max']
 ]
+feature_summary['Feature'] = feature_summary['Feature'].map({
+    'log_deposits': 'Bank size',
+    'cash_ratio': 'Cash / assets',
+    'loan_ratio': 'Loans / assets',
+    'equity_ratio': 'Equity / assets',
+    'prior_growth': 'Prior growth',
+})
 table(
     feature_summary,
     'What do the five training inputs look like?',
@@ -1552,23 +1700,29 @@ cash_group_summary = (
          Q3=lambda s: s.quantile(.75))
     .reset_index()
 )
-table(
-    cash_group_summary,
-    'Cash ratios by next-quarter outcome · training only',
-    {'Median': '{:.1%}', 'Q1': '{:.1%}', 'Q3': '{:.1%}'},
-)
 cash_comparison = wm_compare_fields(
     cash_groups.drop(columns='growth'),
     fields=['cash_ratio', 'Next quarter'],
     kind='numeric_by_category',
 )
 cash_comparison.figure.update_traces(boxpoints=False)
-cash_comparison.figure.update_xaxes(title='Cash / assets', tickformat='.0%')
+cash_comparison.figure.update_layout(showlegend=False)
+cash_window = float(train['cash_ratio'].quantile(.99))
+cash_comparison.figure.update_xaxes(
+    title='Cash / assets',
+    tickformat='.0%',
+    range=[0, cash_window],
+)
 chart(
     cash_comparison.figure,
     'cash_by_outcome_box',
     'Do cash ratios differ when deposits later fall?',
-    'Training rows; boxes show median and middle half; exact quartiles above',
+    f'Training rows; view ends at the 99th percentile ({cash_window:.1%}); boxes use all rows',
+)
+table(
+    cash_group_summary,
+    'Cash-ratio quartiles · exact values',
+    {'Median': '{:.1%}', 'Q1': '{:.1%}', 'Q3': '{:.1%}'},
 )
 
 # %% NOTEBOOK CELL
@@ -1596,6 +1750,47 @@ chart(
     'decline_share_time',
     'Did deposit declines cluster in particular quarters?',
     'Training period only; next-quarter decline divided by eligible rows',
+)
+
+# Keep each year visible when checking whether the quarterly rhythm repeats.
+seasonality = quarterly_declines.copy()
+seasonality['Year'] = seasonality['date'].dt.year
+seasonality['Quarter'] = 'Q' + seasonality['date'].dt.quarter.astype(str)
+# A small fixed offset exposes individual years that would otherwise overlap.
+seasonality['Quarter position'] = (
+    seasonality['date'].dt.quarter
+    + (seasonality['Year'] - seasonality['Year'].mean()) * .025
+)
+seasonality.to_csv(OUT / 'training_seasonality.csv', index=False)
+
+fig = px.scatter(
+    seasonality,
+    x='Quarter position',
+    y='Decline share',
+    color='Year',
+    hover_data=['Quarter', 'date', 'Rows', 'Declines'],
+    color_continuous_scale='Teal',
+)
+fig.update_traces(marker={'size': 10, 'opacity': .8})
+fig.update_yaxes(title='Bank-quarters with deposit decline', tickformat='.0%')
+fig.update_xaxes(
+    title='Predictor quarter of year',
+    tickvals=[1, 2, 3, 4],
+    ticktext=['Q1', 'Q2', 'Q3', 'Q4'],
+    range=[.7, 4.3],
+)
+chart(
+    fig,
+    'training_seasonality',
+    'Does the decline pattern repeat by quarter of year?',
+    'Each dot is one training year; descriptive check only',
+)
+seasonal_medians = seasonality.groupby('Quarter')['Decline share'].median()
+takeaway(
+    'The usual Q1–Q4 rhythm breaks in 2020',
+    f"The training-year median decline rate is {seasonal_medians['Q1']:.1%} "
+    f"after Q1 reports and {seasonal_medians['Q4']:.1%} after Q4 reports. "
+    'The 2020 points show why this remains descriptive. Quarter of year is not a model input.',
 )
 
 # Correlation answers whether the five fixed inputs repeat the same information.
@@ -1858,6 +2053,8 @@ def predict_log_growth(model, features):
     return np.asarray(model(features, training=False)).ravel()
 
 
+# %% NOTEBOOK CELL
+# Fit once with the frozen seed; validation decides when to stop.
 mlp, history, training_seconds = fit_network(SEED)
 
 validation_predictions = {
@@ -1916,6 +2113,7 @@ frozen = {
 validation_scores.to_csv(OUT / 'validation_scores.csv', index=False)
 ridge_tuning.to_csv(OUT / 'ridge_tuning.csv', index=False)
 
+# %% NOTEBOOK CELL
 # Inspect which observed outcomes dominate validation MSE.
 history_frame = (
     pd.DataFrame(history)
@@ -1968,6 +2166,8 @@ takeaway(
     ),
 )
 
+# %% NOTEBOOK CELL
+# The learning curve shows the validation-selected training duration.
 fig = go.Figure()
 for column, label, color, dash in [
     ('loss', 'Training', '#007F89', 'solid'),
@@ -2002,14 +2202,14 @@ takeaway(
 ''')
 section('8 · Does the neural network improve the forecast?', '''
 **Now open the frozen historical evaluation.** Every model predicts the same bank-quarters.
-The score table gives exact errors; the dots let your eye compare them.
+The two dot panels carry the exact scores; the full score table is saved as a CSV.
 The scatter asks a different question: do individual predictions move with reality?
 
 On the diagonal, prediction equals outcome. Above it, the model predicts too much growth.
 Below it, the model predicts too little. Both axes use the same units and scale.
-The full-range scatter retains every eligible evaluation row.
+Every eligible evaluation row remains in the scores and saved predictions.
 ''',r'''
-# EXEMPLAR: bounded-takeaway
+# Compare the four forecasts on the same later bank-quarters.
 question_card(
     title='Did the MLP reduce error on later quarters?',
     theme=theme,
@@ -2051,13 +2251,9 @@ metrics = ordered_rows(
     ['Model'],
     category_orders={'Model': MODEL_ORDER},
 )
-table(
-    metrics,
-    'Reused 2024 holdout: every eligible row counts',
-    {'MAE (pp)': '{:.4f}', 'RMSE (pp)': '{:.4f}'},
-)
-
-# Direct labels and selective color make each metric winner visible at a glance.
+# %% NOTEBOOK CELL
+# The same four models appear in both panels. A dot's position carries the
+# score, while its label keeps small differences readable.
 fig = make_subplots(
     rows=1,
     cols=2,
@@ -2074,35 +2270,28 @@ for column_number, metric_name in enumerate(
 ):
     metric_values = metrics.set_index('Model')[metric_name].reindex(MODEL_ORDER)
     winner_name = metric_values.idxmin()
-    bar_colors = [
-        '#007F89'
-        if model_name == winner_name
-        else '#D3D8DE'
-        for model_name in MODEL_ORDER
-    ]
-
-    fig.add_trace(
-        go.Bar(
-            x=metric_values.values,
-            y=MODEL_ORDER,
-            orientation='h',
-            marker_color=bar_colors,
-            text=[f'{value:.3f} pp' for value in metric_values],
-            textposition='outside',
-            cliponaxis=False,
-            showlegend=False,
-            hovertemplate=(
-                '%{y}<br>'
-                + metric_name
-                + ': %{x:.3f} pp<extra></extra>'
+    for model_name, value in metric_values.items():
+        fig.add_trace(
+            go.Scatter(
+                x=[value],
+                y=[model_name],
+                mode='markers+text',
+                marker={
+                    'size': 14 if model_name == winner_name else 10,
+                    'color': '#007F89' if model_name == winner_name else '#9AA6B2',
+                },
+                text=[f'{value:.3f} pp'],
+                textposition='middle right',
+                textfont={'color': '#26323A'},
+                showlegend=False,
+                hovertemplate=f'{model_name}<br>{metric_name}: {value:.4f} pp<extra></extra>',
             ),
-        ),
-        row=1,
-        col=column_number,
-    )
+            row=1,
+            col=column_number,
+        )
     fig.update_xaxes(
         title='Percentage points; lower is better',
-        range=[0, metric_values.max() * 1.18],
+        range=[max(0, metric_values.min() - .25), metric_values.max() + .9],
         row=1,
         col=column_number,
     )
@@ -2117,9 +2306,30 @@ chart(
     fig,
     'comparison',
     'Which forecast has the smallest error?',
-    'Teal marks the winner in each panel; exact errors appear on the bars',
-    height=560,
+    'Zero growth has the lowest MAE; the MLP has the lowest RMSE',
+    height=460,
 )
+
+# Check the large misses directly before interpreting the RMSE result.
+large_error_check = pd.DataFrame([
+    {
+        'Model': model_name,
+        '99th percentile absolute error (pp)': float(np.quantile(
+            np.abs(100 * (np.expm1(y_test) - np.expm1(prediction))), .99
+        )),
+    }
+    for model_name, prediction in log_predictions.items()
+])
+large_error_check.to_csv(OUT / 'large_error_quantiles.csv', index=False)
+assert large_error_check.loc[
+    large_error_check.Model.eq('MLP'),
+    '99th percentile absolute error (pp)',
+].iloc[0] < large_error_check.loc[
+    large_error_check.Model.eq('Zero growth'),
+    '99th percentile absolute error (pp)',
+].iloc[0]
+
+# %% NOTEBOOK CELL
 
 # Convert log predictions back to ordinary growth for interpretation.
 growth_predictions = {
@@ -2212,13 +2422,15 @@ winner = mae.idxmin()
 difference = float(mae['MLP'] - mae['Ridge'])
 
 takeaway(
-    f'{winner} has the lowest historical MAE',
+    'Zero growth wins MAE; the MLP wins RMSE',
     (
+        f'Zero growth: {mae["Zero growth"]:.3f} pp MAE. '
         f'MLP: {mae["MLP"]:.3f} pp. '
         f'Ridge: {mae["Ridge"]:.3f} pp. '
         f'Persistence: {mae["Persistence"]:.3f} pp. '
         f'The MLP minus Ridge difference is {difference:+.3f} pp. '
-        'This is descriptive evidence from a reused holdout.'
+        'The MLP reduces some large misses, but its typical absolute miss is '
+        'larger than zero growth on this reused holdout.'
     ),
     f'{mae[winner]:.3f} pp',
 )
@@ -2231,7 +2443,7 @@ These groups are defined after the outcome occurs. They diagnose errors; they do
 Each bank-quarter gets equal weight in pooled MAE. We also average the three quarter-level scores, giving
 each quarter equal influence. Three evaluation quarters provide a narrow view of temporal stability.
 ''',r'''
-# EXEMPLAR: bounded-takeaway
+# Check errors by quarter and by realized outcome before interpreting an average.
 question_card(
     title='Where does the average score hide the largest misses?',
     theme=theme,
@@ -2342,7 +2554,7 @@ The zero-growth rule has no economic ranking signal; its certificate ordering is
 Spearman correlation compares the order of all forecasts with the order of outcomes.
 A constant forecast has no defined rank correlation. Leave that value missing.
 ''',r'''
-# EXEMPLAR: bounded-takeaway
+# Fix the quarterly review capacity before looking at the rankings.
 question_card(
     title='Could the forecast identify weak banks before the outcome?',
     theme=theme,
@@ -2391,27 +2603,9 @@ for quarter, part in result_frame.groupby('date'):
         )
 
 ranking = pd.DataFrame(ranking)
-ranking_display = ranking[
-    ['Quarter', 'Model', 'Selected', 'Hits', 'Precision', 'Spearman']
-].copy()
-ranking_display['Quarter'] = (
-    pd.to_datetime(ranking_display.Quarter)
-    .dt.to_period('Q')
-    .astype(str)
-)
-ranking_display = ordered_rows(
-    ranking_display,
-    ['Quarter', 'Model'],
-    category_orders={'Model': MODEL_ORDER},
-)
-table(
-    ranking_display,
-    'Predicted selection compared with realized weak growth',
-    {'Precision': '{:.1%}', 'Spearman': '{:.3f}'},
-)
-
-# Counts answer the question directly. Percentages remain useful because each
-# quarter contains a slightly different number of banks.
+# %% NOTEBOOK CELL
+# One model gets one row; each quarter gets one marker. Hover retains the
+# exact count behind the percentage, and the CSV retains every audit column.
 ranked_models = ranking.loc[
     ranking.Model.ne('Zero growth')
 ].copy()
@@ -2419,60 +2613,79 @@ ranked_models['Quarter label'] = (
     pd.to_datetime(ranked_models.Quarter)
     .dt.strftime('%b %Y')
 )
-ranked_models['Hit label'] = ranked_models.apply(
-    lambda row: (
-        f'{row["Hits"]:.0f} of {row["Selected"]:.0f}'
-        f'<br>{row["Precision"]:.1%}'
-    ),
-    axis=1,
-)
+quarter_colors = {
+    'Mar 2024': '#007F89',
+    'Jun 2024': '#4F6FA9',
+    'Sep 2024': '#AC7524',
+}
+quarter_symbols = {'Mar 2024': 'circle', 'Jun 2024': 'diamond', 'Sep 2024': 'square'}
 
-fig = px.bar(
-    ranked_models,
-    x='Quarter label',
-    y='Precision',
-    color='Model',
-    barmode='group',
-    text='Hit label',
-    color_discrete_map=MODEL_COLORS,
-    category_orders={
-        'Model': ['Persistence', 'Ridge', 'MLP'],
-        'Quarter label': ['Mar 2024', 'Jun 2024', 'Sep 2024'],
-    },
-)
-fig.update_traces(textposition='outside', cliponaxis=False)
-fig.update_yaxes(
-    title='Share of selected banks in realized bottom decile',
-    tickformat='.0%',
-    range=[0, 0.31],
-)
+fig = go.Figure()
+model_rows = {'Persistence': 2, 'Ridge': 1, 'MLP': 0}
+quarter_offsets = {'Mar 2024': .16, 'Jun 2024': 0, 'Sep 2024': -.16}
+
+for quarter_label in ['Mar 2024', 'Jun 2024', 'Sep 2024']:
+    part = ranked_models.loc[
+        ranked_models['Quarter label'].eq(quarter_label)
+    ]
+    fig.add_trace(go.Scatter(
+        x=part['Precision'],
+        y=part['Model'].map(model_rows) + quarter_offsets[quarter_label],
+        mode='markers',
+        name=quarter_label,
+        marker={
+            'size': 17,
+            'symbol': quarter_symbols[quarter_label],
+            'color': quarter_colors[quarter_label],
+            'line': {'color': 'white', 'width': 1},
+        },
+        customdata=part[['Model', 'Hits', 'Selected']].to_numpy(),
+        hovertemplate=(
+            '%{customdata[0]}<br>' + quarter_label
+            + '<br>%{customdata[1]} of %{customdata[2]} selected banks'
+            + '<br>Precision: %{x:.1%}<extra></extra>'
+        ),
+    ))
+
 fig.update_xaxes(
-    title='Predictor quarter',
+    title='Selected banks with realized bottom-decile growth',
+    tickformat='.0%',
+    range=[0, .30],
 )
-fig.add_hline(
-    y=0.10,
+fig.update_yaxes(
+    title='',
+    tickvals=[0, 1, 2],
+    ticktext=['MLP', 'Ridge', 'Persistence'],
+    range=[-.45, 2.45],
+)
+fig.add_vline(
+    x=0.10,
     line_dash='dash',
     line_color='#343B43',
-    annotation_text='Random expectation: about 10%',
-    annotation_position='bottom right',
 )
 chart(
     fig,
     'ranking',
     'How many selected banks actually had weak growth?',
-    'Labels show hits out of banks selected; bars show the same result as a percentage',
-    height=620,
+    'Dashed line: about 10% by chance. Ridge leads Mar and Jun; MLP leads Sep.',
+    height=520,
+    legend_y=-0.47,
 )
 ranking.to_csv(OUT/'ranking.csv',index=False)
 precision=ranking.loc[ranking.Model.eq('MLP'),'Precision'].mean()
-takeaway('The MLP found few of the weakest outcomes',f'At a 10% quarterly review capacity, {precision:.1%} of the MLP selections landed in the realized bottom decile on average. Ridge produced the stronger ranking.')
+takeaway(
+    'Both feature models beat chance in these three quarters',
+    'Ridge leads in March and June; MLP leads in September. '
+    'Hover over each point for hits out of banks selected. '
+    'Three reused quarters cannot establish which model would lead later.',
+)
 ''')
 section('11 · What did we learn, and what would we do next?', '''
 **The small neural network did not establish a dependable forecasting advantage on the reused 2024
 holdout.** A zero-growth forecast had the lowest MAE at **3.60 percentage points**. The MLP scored **3.63
-MAE** and **6.43 RMSE**; Ridge scored **3.64 MAE** and **6.51 RMSE**. The MLP's MAE edge over Ridge was
-only **0.014 points**, and the paired bank-cluster interval ran from **-0.043 to +0.013 points**. That range
-includes zero, so this experiment cannot separate a small nonlinear gain from sampling variation.
+MAE** and had the lowest RMSE at **6.43 points**. Ridge scored **3.64 MAE** and **6.51 RMSE**; persistence
+scored **5.11 MAE** and **9.46 RMSE**. The MLP's small edge over Ridge does not establish dependable
+nonlinear value. The deeper bank-cluster check appears after this conclusion.
 
 Weak quarters tell a more practical story. The MLP's MAE rose from **3.63 points overall** to **6.78 points
 in the realized bottom decile**. At a 10% quarterly review capacity, **21.8%** of its selections landed in
@@ -2483,7 +2696,7 @@ The evidence supports a simple operating choice. Keep zero growth as the accurac
 as the transparent feature model, and treat the MLP as an unproven research candidate. Audit large misses
 for mergers and institutional changes, then evaluate all three on a later untouched period.
 
-**Why can zero growth win MAE while Ridge wins RMSE?** They reward different behavior.
+**Why can zero growth win MAE while the MLP wins RMSE?** They reward different behavior.
 An error of 10 percentage points contributes 10 to absolute error and 100 to squared error.
 Large changes therefore pull an MSE-trained model harder. The prediction that minimizes expected
 absolute error is a conditional median; squared error targets a conditional mean.
@@ -2494,11 +2707,24 @@ to EMIGRANT BANK with a huge balance jump. Institutional restructuring can domin
 balance changes. That is a limitation of this outcome definition that the next experiment must resolve.
 We preserve it here instead of quietly changing the question after seeing the errors.
 ''',r'''
-# EXEMPLAR: bounded-takeaway
-conclusion=('The MLP improves historical MAE over both persistence and Ridge.' if mae['MLP']<min(mae['Persistence'],mae['Ridge'])
-            else 'The MLP does not beat both persistence and Ridge on historical MAE.')
-takeaway('Does this experiment establish nonlinear value?',conclusion+
-    ' Compare RMSE, weak-outcome errors, and quarter-level results before deciding whether any improvement is useful. A reused three-quarter holdout cannot establish deployment reliability.')
+# Build the conclusion from the saved scores and the three-quarter limit.
+rmse = metrics.set_index('Model')['RMSE (pp)']
+assert mae.idxmin() == 'Zero growth'
+assert rmse.idxmin() == 'MLP'
+conclusion = (
+    f'The MLP did not improve typical forecast error over predicting zero '
+    f'growth ({mae["MLP"]:.3f} versus {mae["Zero growth"]:.3f} pp MAE). '
+    f'It had the lowest RMSE ({rmse["MLP"]:.3f} pp), and its 99th-percentile '
+    'absolute error was below zero growth. Its small edge over Ridge does not '
+    'establish dependable nonlinear value. These are three reused 2024 quarters. '
+    'All four comparisons: '
+    + '; '.join(
+        f'{model}: MAE {mae[model]:.3f}, RMSE {rmse[model]:.3f} pp'
+        for model in MODEL_ORDER
+    )
+    + '.'
+)
+takeaway('Does this experiment establish nonlinear value?', conclusion)
 takeaway('For a bank analyst: use the result to guide research',
     'Inspect the source reports and institution changes behind large forecast misses. These quarterly balances do not establish withdrawals, bank runs, or the benefit of an intervention.')
 takeaway('For the next experiment: earn genuinely new evidence',
@@ -2523,7 +2749,7 @@ historical model even if another start looks better.
 
 This sensitivity check measures optimization variation across three starting points. All three fits use the same banks and quarters.
 ''',r'''
-# EXEMPLAR: bounded-takeaway
+# Repeat the same training run with two other starting weights.
 seed_results=[{'Seed':42,**log_scores(y_valid, validation_predictions['MLP']),'Best epoch':frozen['mlp_best_epoch']}]
 for seed in [7,99]:
     other,h,seconds=fit_network(seed)
@@ -2548,7 +2774,7 @@ A negative difference favors the MLP. The 95% percentile interval describes resa
 conditional on these fitted models and these three quarters. New economic regimes remain outside this interval
 or all uncertainty from retraining the models.
 ''',r'''
-# EXEMPLAR: bounded-takeaway
+# Resample certificates so repeated bank reports stay together.
 errors=result_frame.assign(delta=np.abs(result_frame.growth-result_frame.MLP)-np.abs(result_frame.growth-result_frame.Ridge))
 clusters=errors.groupby('CERT').delta.agg(['sum','count'])
 rng = np.random.default_rng(42)
@@ -2585,7 +2811,7 @@ The API often supplies zeros even below the reporting threshold. A populated API
 is not proof that the bank filed that regulatory item, and a zero is not proof of zero exposure.
 Do not splice the fields or impute either into the model without a verified historical mapping.
 ''',r'''
-# EXEMPLAR: missingness-evidence
+# Inspect both uninsured-deposit fields without treating zeros as verified filings.
 coverage_source=long_audit.copy()
 coverage_source['Asset group']=np.where(coverage_source.ASSET.ge(1_000_000),'At least USD 1bn','Below USD 1bn')
 uninsured=[]
@@ -2646,7 +2872,164 @@ The lower-triangle correlation heatmap describes overlap among the five fixed in
 ''',advanced=True)
 
 
+def arrange_story():
+    """Put the short experiment first and the detailed audits after its answer."""
+    (
+        introduction,
+        history,
+        experiment_zero,
+        eligibility,
+        split,
+        target,
+        mechanics,
+        features_and_model,
+        evaluation,
+        tail_errors,
+        ranking,
+        conclusion,
+        seeds,
+        bootstrap,
+        uninsured,
+        experiment_zero_notes,
+    ) = sections
+
+    # The 2013-onward EDA stays up front. The older-report investigation uses
+    # the same loaded data, but appears only after the core model result.
+    history_title, history_prose, history_code, _ = history
+    audit_start = '# Reporting metadata lets us explain missing equity'
+    audit_end = '\ngate = {'
+    early_history, audit_and_gate = history_code.split(audit_start, 1)
+    detailed_audit, gate_tail = audit_and_gate.split(audit_end, 1)
+    history = (
+        '1 · What is in the 2013–2024 data?',
+        history_prose,
+        early_history + '\ngate = {' + gate_tail,
+        False,
+    )
+    comparability_appendix = (
+        'Deeper check · What changed in older reports?',
+        'The pre-2013 rows remain an audit population. Inspect their missingness and reporting forms here, after the forecasting result.',
+        audit_start + detailed_audit,
+        False,
+    )
+
+    # Define the time windows as soon as eligible rows exist. Present their
+    # visual receipt after the target decision, where the reader needs it.
+    split_title, split_prose, split_code, _ = split
+    setup_start = '# The one-quarter gaps keep each split'
+    setup_end = '\nassert train'
+    before_setup, setup_and_display = split_code.split(setup_start, 1)
+    setup_body, display_rest = setup_and_display.split(setup_end, 1)
+    eligibility = (
+        '2 · Which bank-quarters have an observable outcome?',
+        eligibility[1],
+        eligibility[2] + '\n# %% NOTEBOOK CELL\n' + setup_start + setup_body,
+        False,
+    )
+    split = (
+        '7 · Did a future outcome enter training?',
+        split_prose,
+        before_setup + '\nassert train' + display_rest,
+        False,
+    )
+
+    # The training-only EDA precedes the target choice. Preprocessing and
+    # fitting remain together later, after the split has been explained.
+    eda_code, model_code = features_and_model[2].split(
+        '# %% NOTEBOOK CELL\n# Learn missing-value replacements', 1
+    )
+    features_before_time, time_and_correlations = eda_code.split(
+        '# %% NOTEBOOK CELL\n# A time line', 1
+    )
+    time_body, feature_correlations = time_and_correlations.split(
+        '# Correlation answers whether', 1
+    )
+    time_section = (
+        '3 · Do deposit declines repeat over time?',
+        'Training quarters only. Each dot in the quarter-of-year view is a separate year; this is a descriptive check, not a new model input.',
+        '# A time line' + time_body,
+        False,
+    )
+    feature_section = (
+        '4 · What do the five inputs look like?',
+        features_and_model[1].split('Our comparison ladder')[0].strip(),
+        features_before_time + '# %% NOTEBOOK CELL\n# Correlation answers whether' + feature_correlations,
+        False,
+    )
+    model_section = (
+        '9 · How are the four forecasts fitted?',
+        'Fit imputation and scaling on training rows, choose settings with validation, and inspect the learning curve before opening 2024.',
+        '# Learn missing-value replacements' + model_code,
+        False,
+    )
+
+    # One short finding motivates the target choice. The full replication of
+    # Experiment 0 remains available with the deeper checks.
+    discovery = (
+        '5 · Why revisit the original dollar target?',
+        'The archived dollar experiment was dominated by institution size. This is the clue that motivates a proportional target.',
+        '''
+legacy = json.loads(
+    (ROOT / 'experiments/experiment_0/outputs/run_summary.json').read_text()
+)
+wm_counterintuitive_card(
+    title='What a novice might overlook',
+    theme=theme,
+    why_misread='Capturing about 85% of decline dollars sounds impressive.',
+    ordinary_process=(
+        f'Ranking by bank size alone captured {100 * legacy["size_capture"]:.2f}% '
+        'at the same review capacity.'
+    ),
+    conclusion_boundary=(
+        f'The original network added {legacy["network_difference_pp"]:.2f} '
+        'percentage points. The dollar weighting made size a strong baseline.'
+    ),
+    kicker='Original experiment',
+    chip_text='LOOK TWICE',
+)
+''',
+        False,
+    )
+    experiment_zero = (
+        'Appendix · Rebuild Experiment 0',
+        experiment_zero[1],
+        experiment_zero[2],
+        True,
+    )
+
+    target = ('6 · What should the model predict?', target[1], target[2], False)
+    mechanics = ('8 · What does the network learn?', mechanics[1], mechanics[2], False)
+    evaluation = ('10 · Which forecast errs least?', evaluation[1], evaluation[2], False)
+    tail_errors = ('11 · Where are the large misses?', tail_errors[1], tail_errors[2], False)
+    ranking = ('12 · Which selected banks had weak growth?', ranking[1], ranking[2], False)
+    conclusion = ('13 · What did we learn?', conclusion[1], conclusion[2], False)
+
+    sections[:] = [
+        introduction,
+        history,
+        eligibility,
+        time_section,
+        feature_section,
+        discovery,
+        target,
+        split,
+        mechanics,
+        model_section,
+        evaluation,
+        tail_errors,
+        ranking,
+        conclusion,
+        comparability_appendix,
+        seeds,
+        bootstrap,
+        uninsured,
+        experiment_zero,
+        experiment_zero_notes,
+    ]
+
+
 def build():
+    arrange_story()
     for edition,name in [('masterclass','FDIC_Deep_Learning_Masterclass.ipynb'),('submission','FDIC_Deep_Learning_Submission.ipynb')]:
         cells=[]
         for index,(title,prose,source,advanced) in enumerate(sections):

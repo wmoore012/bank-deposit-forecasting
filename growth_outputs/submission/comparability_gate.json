@@ -1,8 +1,9 @@
 {
-  "all_60_quarters": true,
+  "all_60_audit_quarters": true,
   "duplicate_keys": 0,
-  "overlap_exact": true,
+  "recent_extract_exact": true,
+  "post_2012_extract_exact": true,
   "historical_form_crosswalk_verified": false,
-  "selected_start": 2020,
-  "reason": "5738 form-100 reports precede the documented 2012 TFR-to-Call-Report conversion. A verified five-field crosswalk is unavailable. Retain 2020\u20132024."
+  "selected_start": 2013,
+  "reason": "The 2013\u20132024 extract begins after the documented 2012 conversion and matches the long extract exactly. Pre-2013 rows remain in the audit only."
 }

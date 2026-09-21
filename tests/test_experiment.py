@@ -29,7 +29,12 @@ class ExperimentTests(unittest.TestCase):
     def test_frozen_design_and_temporal_boundary(self):
         out=ROOT/'growth_outputs/masterclass'
         f=json.loads((out/'frozen_plan.json').read_text())
-        self.assertEqual(f['architecture'],[5,32,16,1]);self.assertEqual(f['seed'],42)
+        gate=json.loads((out/'comparability_gate.json').read_text())
+        self.assertEqual(f['architecture'],[5,32,16,1])
+        self.assertEqual(f['seed'],42)
+        self.assertEqual(f['target']['target'],'log_growth')
+        self.assertEqual(gate['selected_start'],2013)
+        self.assertTrue(gate['post_2012_extract_exact'])
         self.assertTrue(f['selection_complete_before_holdout_predictions'])
         splits=pd.read_csv(out/'splits.csv').set_index('Period')
         self.assertLess(splits.loc['Training','Last outcome'],splits.loc['Validation','First predictor'])

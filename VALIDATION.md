@@ -12,7 +12,7 @@ ZIP; saved outputs/metadata differ, so byte identity is not claimed. The origina
 and results are archived separately.
 
 The local exported HTML was inspected in the Codex browser. Observed populated
-Plotly charts, a readable formula card, exact score tables, a 4.140 pp MLP tooltip,
+Plotly charts, a readable formula card, exact score tables, a 3.627 pp MLP tooltip,
 the learning curve, actual/predicted scatter, realized-tail errors, and predicted
 ranking lines. Fixed subtitle/subplot overlap and dark-on-dark tooltips. Compact
 ranking columns retain complete evidence in the CSV. Browser console inspection

@@ -37,9 +37,10 @@ allow interactive JavaScript. The HTML preview provides a separate reading surfa
 - `sources/README.md`: primary sources and the historical comparability decision.
 - `notebooks/source/`: scratch and takeover notes for future work.
 
-The 2010–2024 file is audited but not used for primary training: 5,738 early
-form-100 reports cross the 2012 TFR-to-Call-Report transition without a verified
-five-field historical crosswalk. The core retains 2020–2024. Missing equity
+The 2010–2024 file is audited but not used directly for primary training: 5,738
+early form-100 reports cross the 2012 TFR-to-Call-Report transition without a
+verified five-field historical crosswalk. The core begins in 2013, after that
+conversion. Its 2013–2024 rows match the long audit extract exactly. Missing equity
 concentrates entirely in form-2 reporting; the revised population uses insured
 domestic-bank classes and forms 31, 41, and 51.
 
@@ -62,14 +63,14 @@ verified. The local CPU environment and saved HTML presentation are the validati
 ## Executed result
 
 On 13,532 historical bank-quarters (2024 Q1–Q3 predictors), zero growth has the
-lowest MAE: **3.601 pp**, versus **3.944** for Ridge, **4.140** for the MLP,
-and **5.110** for persistence. Ridge has the lowest RMSE, **6.617 pp**.
-The MLP-minus-Ridge MAE difference is **+0.196 pp**, with a conditional paired
-bank-cluster 95% interval of **+0.165 to +0.230 pp**. Positive favors Ridge.
+lowest MAE: **3.601 pp**, versus **3.641** for Ridge, **3.627** for the MLP,
+and **5.110** for persistence. The MLP has the lowest RMSE, **6.429 pp**.
+The MLP-minus-Ridge MAE difference is **-0.014 pp**, with a paired bank-cluster
+95% interval of **-0.043 to +0.013 pp**. The interval includes zero.
 
 The result does not establish added nonlinear value. In the realized bottom
-decile, MLP MAE rises to **8.778 pp**. Its predicted bottom-decile selection has
-about **14.9% precision** on an equal-quarter average. The original 94.54%
+decile, MLP MAE rises to **6.781 pp**. Its predicted bottom-decile selection has
+about **21.8% precision** on an equal-quarter average. The original 94.54%
 dollar concentration reproduces exactly.
 
 A particularly instructive validation pair changes from PLUS INTERNATIONAL BANK

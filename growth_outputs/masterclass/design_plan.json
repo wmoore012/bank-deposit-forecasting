@@ -1,10 +1,11 @@
 {
   "target": {
-    "target": "growth",
-    "units": "fraction; errors reported in percentage points",
-    "reason": "Relative signed movement directly answers the business question; zero next deposits remain defined.",
+    "target": "log_growth",
+    "model_units": "log change",
+    "reported_error_units": "ordinary percentage points",
+    "reason": "The 2013\u20132022 training distribution contains percentage growth above 5,000x because some starting balances are tiny. Log growth preserves multiplicative movement and keeps those rows in the experiment.",
     "clipping": null,
-    "extreme_treatment": "Retain; same-certificate continuity does not establish economic cause.",
+    "extreme_treatment": "Retain and audit the surrounding reports.",
     "training_only": true
   },
   "features": [
@@ -27,7 +28,7 @@
   ],
   "optimizer": "Adam",
   "learning_rate": 0.001,
-  "loss": "MSE",
+  "loss": "MSE on log growth",
   "batch_size": 512,
   "epochs_max": 200,
   "early_stopping_patience": 10,
@@ -38,7 +39,7 @@
     10,
     100
   ],
-  "ridge_selection": "validation MAE",
+  "ridge_selection": "validation MAE in percentage points",
   "historical_status": "reused 2024 holdout",
   "clipping": null,
   "train_predictor_end": "2022-09-30",
@@ -57,8 +58,8 @@
     "Insured domestic bank; comparable Call Report",
     "Adjacent prior quarter",
     "Adjacent next quarter",
-    "Positive current and prior deposits",
-    "Nonnegative next deposits and positive assets"
+    "Positive deposits in prior, current, and next quarter",
+    "Positive current assets"
   ],
-  "source_sha256": "a5ec2223c7ac66de61e83681e449a7cf4ed66052b98229207d5f4067db23810b"
+  "source_sha256": "ed8b1a663c1a9c417a71069f7c3a947ca41e670f2123d0c54ef868443ce3b0d8"
 }

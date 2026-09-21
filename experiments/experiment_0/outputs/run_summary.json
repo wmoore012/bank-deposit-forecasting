@@ -1,0 +1,37 @@
+{
+  "winner": "Linear two-part",
+  "seed": 42,
+  "capacity": 0.1,
+  "features": [
+    "log_deposits",
+    "cash_ratio",
+    "loan_ratio",
+    "equity_ratio",
+    "growth_asinh",
+    "quarter_sin",
+    "quarter_cos"
+  ],
+  "source_sha256": "a5ec2223c7ac66de61e83681e449a7cf4ed66052b98229207d5f4067db23810b",
+  "selection_metric": "equal-quarter mean capture",
+  "test_status": "reused historical 2024 holdout",
+  "no_retraining_after_selection": true,
+  "train_rows": 48472,
+  "validation_rows": 13777,
+  "historical_rows": 13480,
+  "network_capture": 0.8509435899846148,
+  "size_capture": 0.8482130742844579,
+  "winner_capture": 0.853324465888731,
+  "network_difference_pp": 0.27305157001569214,
+  "bootstrap_interval_pp": [
+    -0.2923228842164566,
+    1.2078585671822228
+  ],
+  "python": "3.12.1",
+  "packages": {
+    "numpy": "2.0.2",
+    "pandas": "3.0.5",
+    "scikit-learn": "1.9.0",
+    "tensorflow": "2.18.1",
+    "wm-notecards": "0.1.0"
+  }
+}

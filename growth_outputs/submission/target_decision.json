@@ -1,0 +1,8 @@
+{
+  "target": "growth",
+  "units": "fraction; errors reported in percentage points",
+  "reason": "Relative signed movement directly answers the business question; zero next deposits remain defined.",
+  "clipping": null,
+  "extreme_treatment": "Retain; same-certificate continuity does not establish economic cause.",
+  "training_only": true
+}

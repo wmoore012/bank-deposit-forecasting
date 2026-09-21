@@ -1,0 +1,25 @@
+{
+  "review_date": "2026-09-21",
+  "files": {
+    "data/fdic_financials_2010_2024.csv": {
+      "bytes": 25513309,
+      "sha256": "f3e6271c82353263bbf8bd1ee30c836b7963dd78185bdc49c4bef3fb255d2ff5"
+    },
+    "data/fdic_reporting_2010_2024.csv": {
+      "bytes": 11257926,
+      "sha256": "4fd21eac7a0b728d2ca26a49e3e74793701fc6fff7593ba6b8ecdc31d840e673"
+    },
+    "data/fdic_financials_2020_2024.csv": {
+      "bytes": 6931505,
+      "sha256": "a5ec2223c7ac66de61e83681e449a7cf4ed66052b98229207d5f4067db23810b"
+    },
+    "sources/fdic_fields.yaml": {
+      "bytes": 616633,
+      "sha256": "b257457e4e821d6a0d9f88ffc4e6e0da80e4ccf67fa394cadb21587b50b23d59"
+    },
+    "vendor/wm_notecards-0.1.0-py3-none-any.whl": {
+      "bytes": 95352,
+      "sha256": "1f0ec7629113119ac85bc72b52a1dce9012bc3c9ece61f5bb52d9042e41deb48"
+    }
+  }
+}

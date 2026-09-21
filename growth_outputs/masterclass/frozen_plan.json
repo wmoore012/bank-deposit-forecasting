@@ -1,0 +1,68 @@
+{
+  "target": {
+    "target": "growth",
+    "units": "fraction; errors reported in percentage points",
+    "reason": "Relative signed movement directly answers the business question; zero next deposits remain defined.",
+    "clipping": null,
+    "extreme_treatment": "Retain; same-certificate continuity does not establish economic cause.",
+    "training_only": true
+  },
+  "features": [
+    "log_deposits",
+    "cash_ratio",
+    "loan_ratio",
+    "equity_ratio",
+    "prior_growth"
+  ],
+  "seed": 42,
+  "additional_seeds": [
+    7,
+    99
+  ],
+  "architecture": [
+    5,
+    32,
+    16,
+    1
+  ],
+  "optimizer": "Adam",
+  "learning_rate": 0.001,
+  "loss": "MSE",
+  "batch_size": 512,
+  "epochs_max": 200,
+  "early_stopping_patience": 10,
+  "ridge_alphas": [
+    0.01,
+    0.1,
+    1,
+    10,
+    100
+  ],
+  "ridge_selection": "validation MAE",
+  "historical_status": "reused 2024 holdout",
+  "clipping": null,
+  "train_predictor_end": "2022-09-30",
+  "validation_predictors": [
+    "2023-01-01",
+    "2023-09-30"
+  ],
+  "holdout_predictors": [
+    "2024-01-01",
+    "2024-09-30"
+  ],
+  "tail_definition": "realized bottom 25% and 10% separately within each holdout quarter",
+  "ranking": "lowest ceil(10% of rows) per quarter; ties broken by CERT",
+  "bootstrap": "500 paired bank-cluster resamples; MAE difference MLP minus Ridge; fixed trained models",
+  "eligibility": [
+    "Insured domestic bank; comparable Call Report",
+    "Adjacent prior quarter",
+    "Adjacent next quarter",
+    "Positive current and prior deposits",
+    "Nonnegative next deposits and positive assets"
+  ],
+  "source_sha256": "a5ec2223c7ac66de61e83681e449a7cf4ed66052b98229207d5f4067db23810b",
+  "chosen_ridge_alpha": 0.01,
+  "mlp_best_epoch": 16,
+  "validation_winner": "Zero growth",
+  "selection_complete_before_holdout_predictions": true
+}

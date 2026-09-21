@@ -1,0 +1,18 @@
+{
+  "winner": "Linear two-part",
+  "seed": 42,
+  "capacity": 0.1,
+  "features": [
+    "log_deposits",
+    "cash_ratio",
+    "loan_ratio",
+    "equity_ratio",
+    "growth_asinh",
+    "quarter_sin",
+    "quarter_cos"
+  ],
+  "source_sha256": "a5ec2223c7ac66de61e83681e449a7cf4ed66052b98229207d5f4067db23810b",
+  "selection_metric": "equal-quarter mean capture",
+  "test_status": "reused historical 2024 holdout",
+  "no_retraining_after_selection": true
+}

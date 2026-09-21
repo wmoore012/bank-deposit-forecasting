@@ -1,0 +1,8 @@
+{
+  "all_60_quarters": true,
+  "duplicate_keys": 0,
+  "overlap_exact": true,
+  "historical_form_crosswalk_verified": false,
+  "selected_start": 2020,
+  "reason": "5738 form-100 reports precede the documented 2012 TFR-to-Call-Report conversion. A verified five-field crosswalk is unavailable. Retain 2020\u20132024."
+}

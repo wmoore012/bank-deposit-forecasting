@@ -1,0 +1,14 @@
+.venv/
+.webapp-tester/
+.mpl-cache/
+__pycache__/
+*.pyc
+.DS_Store
+*.zip
+FDIC_Deep_Learning_Masterclass/
+*.html
+output*.png
+.ipynb_checkpoints/
+growth_outputs/*/charts/
+FDIC_LogGrowth_Masterclass/
+masterclass_outputs/

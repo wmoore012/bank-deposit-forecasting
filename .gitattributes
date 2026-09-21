@@ -1,0 +1,4 @@
+# Preserve downloaded source bytes and accept their original CSV line endings.
+data/*.csv -text whitespace=cr-at-eol
+# The dictionary is a verbatim public source snapshot, including source whitespace.
+sources/fdic_fields.yaml -text whitespace=-blank-at-eol

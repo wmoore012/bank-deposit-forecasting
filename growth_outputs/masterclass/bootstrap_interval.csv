@@ -1,0 +1,2 @@
+Comparison,Observed MAE difference (pp),95% lower (pp),95% upper (pp),Bank clusters
+MLP minus Ridge,0.19638057235000472,0.16494069937517855,0.22977428455222598,4537

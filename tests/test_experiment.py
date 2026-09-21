@@ -72,7 +72,7 @@ class ExperimentTests(unittest.TestCase):
     def test_eda_inspection_and_time_series_are_saved(self):
         nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
         source='\n'.join(cell.source for cell in nb.cells if cell.cell_type=='code')
-        for check in ['post_conversion.head()', 'post_conversion.info(', 'post_conversion.isna().sum()', '.describe()', 'display_data_chips(', 'style_describe_wm(']:
+        for check in ['post_conversion.head()', 'post_conversion.info(', 'post_conversion.isna().sum()', '.describe()', 'display_data_chips(', 'style_describe_wm(', 'wm_render_micro_profile_cards(', 'wm_compare_fields(']:
             self.assertIn(check, source)
 
         charts=ROOT/'growth_outputs/masterclass/charts'
@@ -87,6 +87,14 @@ class ExperimentTests(unittest.TestCase):
         self.assertIn('Largest training changes: balances in USD thousands', html)
         self.assertIn('What do the five training inputs look like?', html)
         self.assertNotIn('214,425.0000', html)
+
+        box=json.loads((charts/'cash_by_outcome_box.json').read_text())
+        self.assertEqual(len(box['data']),2)
+        self.assertTrue(all(trace['type']=='box' for trace in box['data']))
+        self.assertEqual({trace['name'] for trace in box['data']},
+                         {'Deposits fell','No decline'})
+        decline=json.loads((charts/'decline_share_time.json').read_text())
+        self.assertEqual(decline['data'][0]['mode'],'lines+markers')
 
     def test_diagnostic_charts_answer_their_questions(self):
         out=ROOT/'growth_outputs/masterclass/charts'

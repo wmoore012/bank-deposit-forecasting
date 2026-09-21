@@ -61,8 +61,13 @@ from wm_notecards.charts import (
     style_fig_wm,
     wm_render_figure_card,
 )
-from wm_notecards.eda import display_data_chips
-from wm_notecards.tables import display_cols_by_dtype, style_describe_wm, wm_render_styler
+from wm_notecards.eda import display_data_chips, wm_compare_fields
+from wm_notecards.tables import (
+    display_cols_by_dtype,
+    style_describe_wm,
+    wm_render_micro_profile_cards,
+    wm_render_styler,
+)
 SEED = 42
 FEATURES = [
     'log_deposits',
@@ -1456,9 +1461,11 @@ section('7 · Put the five inputs on comparable scales', '''
 Standardization subtracts a training mean and divides by a training standard deviation.
 A missing predictor gets its training median. Validation and historical rows reuse those exact values.
 
-Before transforming anything, inspect the five inputs on the training period. The summary shows scale and
-extremes. The correlation view asks whether the inputs repeat the same information. The prior-versus-next
-scatter asks whether “repeat last quarter” has visible signal before we give that rule a formal score.
+Before transforming anything, inspect the five inputs on the training period. The profile cards show
+their shapes and missing values. A box plot compares cash ratios for banks whose deposits later fell
+and banks whose deposits did not. The quarterly line checks whether declines cluster in time.
+These are descriptions of past rows, not evidence that cash caused a decline. The correlation view
+asks whether inputs repeat information; the prior-versus-next scatter checks recent-history signal.
 
 Our comparison ladder has four rungs: zero growth; repeat last quarter’s growth; Ridge; the small MLP.
 Ridge strength is selected from a fixed grid using validation MAE. The MLP stops on validation MSE.
@@ -1517,6 +1524,78 @@ table(
         for column in ['mean', '1%', '50%', '99%', 'max']
     }},
     wrap_columns={'Feature': 180},
+)
+
+# The notebook's original WM profile rail is the visual companion to describe().
+# Each card keeps missingness and skew beside the field's typical value.
+wm_render_micro_profile_cards(
+    train[FEATURES],
+    theme=theme,
+    columns=FEATURES,
+    visible_cards=5,
+    max_cards=5,
+    skew_threshold=1.0,
+)
+
+# %% NOTEBOOK CELL
+# Compare cash ratios by what actually happened next quarter. Both groups
+# remain in the training data; a difference here is an association.
+cash_groups = train[['cash_ratio', 'growth']].copy()
+cash_groups['Next quarter'] = np.where(
+    cash_groups['growth'].lt(0),
+    'Deposits fell',
+    'No decline',
+)
+cash_group_summary = (
+    cash_groups.groupby('Next quarter', sort=False)['cash_ratio']
+    .agg(Rows='count', Median='median', Q1=lambda s: s.quantile(.25),
+         Q3=lambda s: s.quantile(.75))
+    .reset_index()
+)
+table(
+    cash_group_summary,
+    'Cash ratios by next-quarter outcome · training only',
+    {'Median': '{:.1%}', 'Q1': '{:.1%}', 'Q3': '{:.1%}'},
+)
+cash_comparison = wm_compare_fields(
+    cash_groups.drop(columns='growth'),
+    fields=['cash_ratio', 'Next quarter'],
+    kind='numeric_by_category',
+)
+cash_comparison.figure.update_traces(boxpoints=False)
+cash_comparison.figure.update_xaxes(title='Cash / assets', tickformat='.0%')
+chart(
+    cash_comparison.figure,
+    'cash_by_outcome_box',
+    'Do cash ratios differ when deposits later fall?',
+    'Training rows; boxes show median and middle half; exact quartiles above',
+)
+
+# %% NOTEBOOK CELL
+# A time line tests whether one period drives the overall decline rate.
+quarterly_declines = (
+    train.assign(Decline=train['growth'].lt(0))
+    .groupby('date', as_index=False)
+    .agg(Rows=('CERT', 'size'), Declines=('Decline', 'sum'))
+    .sort_values('date')
+)
+quarterly_declines['Decline share'] = (
+    quarterly_declines['Declines'] / quarterly_declines['Rows']
+)
+fig = px.line(
+    quarterly_declines,
+    x='date',
+    y='Decline share',
+    markers=True,
+)
+fig.update_traces(line=dict(color='#AF7721', width=3), marker=dict(size=5))
+fig.update_yaxes(title='Bank-quarters with deposit decline', tickformat='.0%')
+fig.update_xaxes(title='Predictor quarter')
+chart(
+    fig,
+    'decline_share_time',
+    'Did deposit declines cluster in particular quarters?',
+    'Training period only; next-quarter decline divided by eligible rows',
 )
 
 # Correlation answers whether the five fixed inputs repeat the same information.

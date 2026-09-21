@@ -58,47 +58,179 @@ from wm_notecards.cards import (
 )
 from wm_notecards.charts import style_fig_wm, wm_render_figure_card
 from wm_notecards.tables import wm_render_styler
-SEED=42
-FEATURES=['log_deposits','cash_ratio','loan_ratio','equity_ratio','prior_growth']
-MODEL_COLORS={'Zero growth':'#737B86','Persistence':'#AF7721','Ridge':'#526EAA','MLP':'#007F89'}
-ROOT=Path.cwd()
-assert (ROOT/'data/fdic_financials_2020_2024.csv').is_file(), 'Run from the project folder.'
-OUT=ROOT/'growth_outputs'/NOTEBOOK_EDITION
+SEED = 42
+FEATURES = [
+    'log_deposits',
+    'cash_ratio',
+    'loan_ratio',
+    'equity_ratio',
+    'prior_growth',
+]
+MODEL_COLORS = {
+    'Zero growth': '#737B86',
+    'Persistence': '#AF7721',
+    'Ridge': '#526EAA',
+    'MLP': '#007F89',
+}
+
+ROOT = Path.cwd()
+assert (ROOT / 'data/fdic_financials_2020_2024.csv').is_file(), (
+    'Run from the project folder.'
+)
+
+OUT = ROOT / 'growth_outputs' / NOTEBOOK_EDITION
 OUT.mkdir(parents=True,exist_ok=True)
 (OUT/'charts').mkdir(exist_ok=True)
+
 tf.config.set_visible_devices([], 'GPU')
 tf.config.threading.set_inter_op_parallelism_threads(2)
 tf.config.threading.set_intra_op_parallelism_threads(2)
 tf.config.experimental.enable_op_determinism()
 tf.keras.utils.set_random_seed(SEED)
-theme=WMTheme(width=860,height=480,accent='#007F89',plot_bg='#FFFFFF')
+
+theme = WMTheme(
+    width=860,
+    height=480,
+    accent='#007F89',
+    plot_bg='#FFFFFF',
+)
 init_notebook(expand_colab_outputs=True)
+
+# VS Code places native Plotly outputs against the left edge of the output
+# region. Center every renderer output once here so individual charts cannot
+# drift away from the card column.
+display(
+    HTML(
+        """
+        <style>
+        .output_container .output {
+            display: flex !important;
+            justify-content: center !important;
+        }
+        .output_container .output > div {
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+        </style>
+        """
+    )
+)
+
 # One inline library makes saved chart outputs independent of a CDN.
-display(HTML('<script>'+get_plotlyjs()+'</script>'))
-def table(frame,title,formats=None):
-    default_formats={c: (lambda v: v.strftime('%Y-%m-%d')) for c in frame.select_dtypes(include=['datetime'])}
-    default_formats.update({c:'{:,.3f}' for c in frame.select_dtypes(include=['floating'])})
+display(HTML('<script>' + get_plotlyjs() + '</script>'))
+
+
+def table(frame, title, formats=None):
+    """Render a dataframe with the same centered teaching-card treatment."""
+    default_formats = {
+        column: (lambda value: value.strftime('%Y-%m-%d'))
+        for column in frame.select_dtypes(include=['datetime'])
+    }
+    default_formats.update(
+        {
+            column: '{:,.3f}'
+            for column in frame.select_dtypes(include=['floating'])
+        }
+    )
     default_formats.update(formats or {})
-    styled=frame.style.hide(axis='index').format(default_formats,na_rep='Missing')
-    wm_render_styler(styled,theme=theme,title=title,
-        wrap_columns={c:290 for c in frame if pd.api.types.is_string_dtype(frame[c])})
-def chart(fig,name,title,subtitle='',height=540):
-    style_fig_wm(fig,title=title,subtitle=subtitle,theme=theme,normalize_legacy_colors=False,
-                 category_policy="preserve",allow_dense_categories=True)
-    title_html='<b>'+'<br>'.join(html.escape(t) for t in textwrap.wrap(title,52))+'</b>'
+
+    styled = frame.style.hide(axis='index').format(
+        default_formats,
+        na_rep='Missing',
+    )
+    wrap_columns = {
+        column: 290
+        for column in frame
+        if pd.api.types.is_string_dtype(frame[column])
+    }
+    wm_render_styler(
+        styled,
+        theme=theme,
+        title=title,
+        wrap_columns=wrap_columns,
+    )
+
+
+def chart(fig, name, title, subtitle='', height=540):
+    """Apply one visual system and one centered renderer to every chart."""
+    style_fig_wm(
+        fig,
+        title=title,
+        subtitle=subtitle,
+        theme=theme,
+        normalize_legacy_colors=False,
+        category_policy='preserve',
+        allow_dense_categories=True,
+    )
+
+    title_html = '<b>' + '<br>'.join(
+        html.escape(line)
+        for line in textwrap.wrap(title, 52)
+    ) + '</b>'
     if subtitle:
-        title_html+='<br><span style="font-size:14px">'+'<br>'.join(html.escape(t) for t in textwrap.wrap(subtitle,88))+'</span>'
-    fig.update_layout(width=860,height=height,font=dict(size=14,family='Inter, Arial, sans-serif'),
-        title=dict(text=title_html,font=dict(size=24),x=.035,y=.98,xanchor='left',yanchor='top'),
-        hovermode='closest',hoverlabel=dict(bgcolor='white',bordercolor='#B8C2CC',font=dict(size=14,color='#182E3A',family='Inter, Arial, sans-serif')),legend=dict(y=-.24,yanchor='top',font=dict(size=14,family='Inter, Arial, sans-serif'),title_text=''),
-        margin=dict(l=85,r=45,t=155,b=120),paper_bgcolor='white',plot_bgcolor='white')
-    fig.update_xaxes(automargin=True,showline=True,linecolor='#ADB5BD',gridcolor='#ECEFF1',
-        tickfont=dict(size=14,family='Inter, Arial, sans-serif'),title_font=dict(size=15,family='Inter, Arial, sans-serif'))
-    fig.update_yaxes(automargin=True,showline=True,linecolor='#ADB5BD',gridcolor='#ECEFF1',
-        tickfont=dict(size=14,family='Inter, Arial, sans-serif'),title_font=dict(size=15,family='Inter, Arial, sans-serif'))
-    fig.for_each_yaxis(lambda axis: axis.update(dtick=1) if axis.type=='log' else None)
-    fig.write_json(OUT/'charts'/f'{name}.json')
-    wm_render_figure_card(fig,theme=theme,file_stub=name)
+        wrapped_subtitle = '<br>'.join(
+            html.escape(line)
+            for line in textwrap.wrap(subtitle, 88)
+        )
+        title_html += (
+            '<br><span style="font-size:14px">'
+            + wrapped_subtitle
+            + '</span>'
+        )
+
+    fig.update_layout(
+        width=860,
+        height=height,
+        font=dict(size=14, family='Inter, Arial, sans-serif'),
+        title=dict(
+            text=title_html,
+            font=dict(size=24),
+            x=0.035,
+            y=0.98,
+            xanchor='left',
+            yanchor='top',
+        ),
+        hovermode='closest',
+        hoverlabel=dict(
+            bgcolor='white',
+            bordercolor='#B8C2CC',
+            font=dict(
+                size=14,
+                color='#182E3A',
+                family='Inter, Arial, sans-serif',
+            ),
+        ),
+        legend=dict(
+            y=-0.24,
+            yanchor='top',
+            font=dict(size=14, family='Inter, Arial, sans-serif'),
+            title_text='',
+        ),
+        margin=dict(l=85, r=45, t=155, b=120),
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+    )
+    fig.update_xaxes(
+        automargin=True,
+        showline=True,
+        linecolor='#ADB5BD',
+        gridcolor='#ECEFF1',
+        tickfont=dict(size=14, family='Inter, Arial, sans-serif'),
+        title_font=dict(size=15, family='Inter, Arial, sans-serif'),
+    )
+    fig.update_yaxes(
+        automargin=True,
+        showline=True,
+        linecolor='#ADB5BD',
+        gridcolor='#ECEFF1',
+        tickfont=dict(size=14, family='Inter, Arial, sans-serif'),
+        title_font=dict(size=15, family='Inter, Arial, sans-serif'),
+    )
+    fig.for_each_yaxis(
+        lambda axis: axis.update(dtick=1) if axis.type == 'log' else None
+    )
+    fig.write_json(OUT / 'charts' / f'{name}.json')
+    wm_render_figure_card(fig, theme=theme, file_stub=name)
 def takeaway(title,body,metric=None):
     takeaway_card(title=title,body=body,metric=metric,theme=theme)
 def scores(y,pred):
@@ -176,7 +308,18 @@ shape_receipt = pd.DataFrame(
     }
 )
 table(shape_receipt, 'What is in the post-conversion extract?')
-table(post_conversion.head(5), 'Five source rows before any transformation')
+table(
+    post_conversion[
+        ['REPDTE', 'CERT', 'NAME', 'STALP']
+    ].head(5),
+    'Five source rows: identity and reporting date',
+)
+table(
+    post_conversion[
+        ['CERT', 'DEPDOM', 'ASSET', 'LNLSNET', 'CHBAL', 'EQ']
+    ].head(5),
+    'The same five rows: financial balances in USD thousands',
+)
 table(schema_table(post_conversion), 'Column types, missing values, and cardinality')
 
 assert not long_history.duplicated(keys).any()
@@ -344,59 +487,173 @@ question_card(
     chip_text='QUESTION',
 )
 
-# Recreate the original three-quarter window exactly. This keeps the diagnosis
-# separate from the new percentage-growth experiment.
-old = recent_extract.sort_values(keys).copy()
-old['date'] = pd.to_datetime(old.REPDTE.astype(str))
-old['q'] = old.date.dt.to_period('Q').astype('int64')
+# First, rebuild the exact rows used by the original dollar experiment.
+def build_experiment_zero_rows(source):
+    """Recreate adjacent-quarter rows under the original eligibility rule."""
+    rows = source.sort_values(keys).copy()
+    rows['date'] = pd.to_datetime(rows.REPDTE.astype(str))
+    rows['q'] = rows.date.dt.to_period('Q').astype('int64')
 
-g = old.groupby('CERT')
-for new, col, shift in [
-    ('prev', 'DEPDOM', 1),
-    ('next', 'DEPDOM', -1),
-    ('prev_q', 'q', 1),
-    ('next_q', 'q', -1),
-]:
-    old[new]=g[col].shift(shift)
+    grouped = rows.groupby('CERT')
+    shifted_columns = [
+        ('prev', 'DEPDOM', 1),
+        ('next', 'DEPDOM', -1),
+        ('prev_q', 'q', 1),
+        ('next_q', 'q', -1),
+    ]
+    for new_column, source_column, periods in shifted_columns:
+        rows[new_column] = grouped[source_column].shift(periods)
 
-# The USD 10 million rule belongs to Experiment 0. Keeping it here lets us
-# reproduce the old result without carrying that threshold into the new model.
-old = old.loc[
-    (old.q-old.prev_q).eq(1)
-    & (old.next_q-old.q).eq(1)
-    & old.DEPDOM.ge(10000)
-    & old.prev.gt(0)
-    & old.next.ge(0)
-    & old.ASSET.gt(0)
-].copy()
+    eligible = (
+        rows.q.sub(rows.prev_q).eq(1)
+        & rows.next_q.sub(rows.q).eq(1)
+        & rows.DEPDOM.ge(10_000)
+        & rows.prev.gt(0)
+        & rows.next.ge(0)
+        & rows.ASSET.gt(0)
+    )
+    rows = rows.loc[eligible].copy()
+    rows['runoff_m'] = rows.DEPDOM.sub(rows.next).clip(lower=0).div(1_000)
 
-old['runoff_m'] = (old.DEPDOM-old.next).clip(lower=0)/1000
-old_train = old.loc[old.date.le('2022-09-30')]
-old_test = old.loc[old.date.between('2024-01-01','2024-09-30')].copy()
-edges=np.r_[-np.inf,old_train.DEPDOM.quantile([.25,.5,.75]),np.inf]
-old_test['Size group']=pd.cut(old_test.DEPDOM,edges,labels=['Smallest','Lower middle','Upper middle','Largest'])
-concentration=old_test.groupby('Size group',observed=True).agg(Rows=('CERT','size'),Decline_m=('runoff_m','sum')).reset_index()
-concentration['Dollar share']=concentration.Decline_m/concentration.Decline_m.sum()
-table(concentration,'Experiment 0: 2024 Q1–Q3 predictor rows',{'Dollar share':'{:.2%}','Decline_m':'{:,.1f}'})
-fig=px.bar(concentration,x='Size group',y='Dollar share',text=concentration['Dollar share'].map('{:.2%}'.format),color_discrete_sequence=['#007F89'])
-fig.update_yaxes(tickformat='.0%',range=[0,1.08],title='Share of decline dollars')
-chart(fig,'experiment0','Where did the decline dollars sit?','Size cutoffs learned from the original training period')
-share=float(concentration.loc[concentration['Size group'].eq('Largest'),'Dollar share'].iloc[0])
-legacy=json.loads((ROOT/'experiments/experiment_0/outputs/run_summary.json').read_text())
-comparison=pd.DataFrame({'Method':['Size rule','Original base network'],
-    'Quarter-average capture (%)':[100*legacy['size_capture'],100*legacy['network_capture']]})
-table(comparison,'Archived Experiment 0: 10% review capacity',{'Quarter-average capture (%)':'{:.2f}'})
-delta=float(comparison.loc[comparison.Method.eq('Original base network'),'Quarter-average capture (%)'].iloc[0]
-            -comparison.loc[comparison.Method.eq('Size rule'),'Quarter-average capture (%)'].iloc[0])
-fig=go.Figure(go.Scatter(
-    x=comparison['Quarter-average capture (%)'],y=[0,0],mode='lines+markers+text',
-    line=dict(color='#ADB5BD',width=5),marker=dict(size=16,color=['#737B86','#007F89']),
-    text=[f'{value:.2f}%' for value in comparison['Quarter-average capture (%)']],
-    textposition=['bottom center','top center'],hovertemplate='%{text}<extra></extra>'))
-fig.update_yaxes(visible=False,range=[-.45,.45])
-fig.update_xaxes(title='Quarter-average capture (%)',range=[84.7,85.2])
-chart(fig,'old_capture',f'The network added {delta:.2f} percentage points',
-    'Size rule on the left; original base network on the right',height=340)
+    return rows
+
+
+def summarize_dollars_by_size(rows):
+    """Learn size quartiles on training rows and apply them to 2024 rows."""
+    training_rows = rows.loc[rows.date.le('2022-09-30')]
+    test_rows = rows.loc[
+        rows.date.between('2024-01-01', '2024-09-30')
+    ].copy()
+
+    quartiles = training_rows.DEPDOM.quantile([0.25, 0.50, 0.75])
+    size_edges = np.r_[-np.inf, quartiles, np.inf]
+    size_labels = [
+        'Smallest',
+        'Lower middle',
+        'Upper middle',
+        'Largest',
+    ]
+    test_rows['Size group'] = pd.cut(
+        test_rows.DEPDOM,
+        bins=size_edges,
+        labels=size_labels,
+    )
+
+    concentration = (
+        test_rows.groupby('Size group', observed=True)
+        .agg(
+            Rows=('CERT', 'size'),
+            Decline_m=('runoff_m', 'sum'),
+        )
+        .reset_index()
+    )
+    concentration['Dollar share'] = concentration.Decline_m.div(
+        concentration.Decline_m.sum()
+    )
+
+    return concentration
+
+
+# %% NOTEBOOK CELL
+# Run the two small helpers, then inspect where the decline dollars landed.
+old = build_experiment_zero_rows(recent_extract)
+concentration = summarize_dollars_by_size(old)
+
+table(
+    concentration,
+    'Experiment 0: 2024 Q1–Q3 predictor rows',
+    {
+        'Dollar share': '{:.2%}',
+        'Decline_m': '{:,.1f}',
+    },
+)
+
+fig = px.bar(
+    concentration,
+    x='Size group',
+    y='Dollar share',
+    text=concentration['Dollar share'].map('{:.2%}'.format),
+    color_discrete_sequence=['#007F89'],
+)
+fig.update_yaxes(
+    tickformat='.0%',
+    range=[0, 1.08],
+    title='Share of decline dollars',
+)
+chart(
+    fig,
+    'experiment0',
+    'Where did the decline dollars sit?',
+    'Size cutoffs learned from the original training period',
+)
+
+# %% NOTEBOOK CELL
+# Compare the archived network with the size-only rule.
+share = float(
+    concentration.loc[
+        concentration['Size group'].eq('Largest'),
+        'Dollar share',
+    ].iloc[0]
+)
+legacy_path = ROOT / 'experiments/experiment_0/outputs/run_summary.json'
+legacy = json.loads(legacy_path.read_text())
+
+comparison = pd.DataFrame(
+    {
+        'Method': ['Size rule', 'Original base network'],
+        'Quarter-average capture (%)': [
+            100 * legacy['size_capture'],
+            100 * legacy['network_capture'],
+        ],
+    }
+)
+table(
+    comparison,
+    'Archived Experiment 0: 10% review capacity',
+    {'Quarter-average capture (%)': '{:.2f}'},
+)
+
+size_capture = comparison.loc[
+    comparison.Method.eq('Size rule'),
+    'Quarter-average capture (%)',
+].iloc[0]
+network_capture = comparison.loc[
+    comparison.Method.eq('Original base network'),
+    'Quarter-average capture (%)',
+].iloc[0]
+delta = float(network_capture - size_capture)
+
+fig = go.Figure(
+    go.Scatter(
+        x=comparison['Quarter-average capture (%)'],
+        y=[0, 0],
+        mode='lines+markers+text',
+        line=dict(color='#ADB5BD', width=5),
+        marker=dict(
+            size=16,
+            color=['#737B86', '#007F89'],
+        ),
+        text=[
+            f'{value:.2f}%'
+            for value in comparison['Quarter-average capture (%)']
+        ],
+        textposition=['bottom center', 'top center'],
+        hovertemplate='%{text}<extra></extra>',
+    )
+)
+fig.update_yaxes(visible=False, range=[-0.45, 0.45])
+fig.update_xaxes(
+    title='Quarter-average capture (%)',
+    range=[84.7, 85.2],
+)
+chart(
+    fig,
+    'old_capture',
+    f'The network added {delta:.2f} percentage points',
+    'Size rule on the left; original base network on the right',
+    height=340,
+)
+
 wm_counterintuitive_card(
     title='What a novice might overlook',
     theme=theme,
@@ -406,9 +663,20 @@ wm_counterintuitive_card(
     kicker='Interpretation check',
     chip_text='LOOK TWICE',
 )
-takeaway('Bank size explains much of the dollar result',
-    f'The largest training-size group contains {share:.2%} of historical decline dollars. The original network added {legacy["network_difference_pp"]:.2f} percentage points of quarter-average capture over size alone.',f'{share:.2%}')
-concentration.to_csv(OUT/'experiment0_concentration.csv',index=False)
+takeaway(
+    'Bank size explains much of the dollar result',
+    (
+        f'The largest training-size group contains {share:.2%} of historical '
+        'decline dollars. The original network added '
+        f'{legacy["network_difference_pp"]:.2f} percentage points of '
+        'quarter-average capture over size alone.'
+    ),
+    f'{share:.2%}',
+)
+concentration.to_csv(
+    OUT / 'experiment0_concentration.csv',
+    index=False,
+)
 ''')
 section('3 · Which rows can actually teach us about next quarter?', '''
 **A missing next report is an unknown outcome.** It can reflect a merger, closure, reporting gap,
@@ -817,6 +1085,7 @@ def show_target_distribution(series, label, file_stub, multiplier=1):
     )
 
 
+# %% NOTEBOOK CELL
 # Each target answers a different business question, so inspect them separately.
 target_specs = [
     ('Dollar change (USD million)', 'dollar_change_m', 1),
@@ -1140,6 +1409,8 @@ chart(
 )
 
 
+# %% NOTEBOOK CELL
+# Learn missing-value replacements and scales from training rows only.
 def fit_preprocessor(training_frame):
     """Fit median imputation and standardization on training rows only."""
     fitted_imputer = SimpleImputer(strategy='median')
@@ -1215,6 +1486,8 @@ settings = {
 (OUT / 'design_plan.json').write_text(json.dumps(settings, indent=2))
 
 
+# %% NOTEBOOK CELL
+# Tune the linear comparison on validation data.
 def choose_ridge(X_fit, y_fit, X_check, y_check, alphas):
     """Select Ridge strength using validation MAE in percentage points."""
     rows = []
@@ -1246,6 +1519,9 @@ ridge, best_alpha, ridge_tuning = choose_ridge(
 )
 
 
+# %% NOTEBOOK CELL
+# Build one fixed neural-network architecture, then let early stopping choose
+# how long it trains.
 def build_network(seed):
     """Create the fixed 5 → 32 → 16 → 1 neural network."""
     tf.keras.utils.set_random_seed(seed)
@@ -1693,8 +1969,39 @@ tail_errors=pd.DataFrame(tail_rows).groupby(['Slice','Model'],sort=False).agg(
 tail_errors['MAE (pp)'] = 100 * tail_errors['MAE']
 tail_errors['RMSE (pp)'] = 100 * np.sqrt(tail_errors['MSE'])
 table(tail_errors[['Slice','Model','Rows','MAE (pp)','RMSE (pp)']],'How wrong are forecasts when growth is weak?',{'MAE (pp)':'{:.3f}','RMSE (pp)':'{:.3f}'})
-fig=px.scatter(tail_errors,x='MAE (pp)',y='Slice',color='Model',symbol='Model',color_discrete_map=MODEL_COLORS,hover_data=['Rows'])
-chart(fig,'tail_errors','Does weak deposit growth expose larger mistakes?','Slices use realized within-quarter growth; this is error analysis')
+slice_order = [
+    'All',
+    'Realized bottom 25%',
+    'Realized bottom 10%',
+]
+tail_errors['Slice'] = pd.Categorical(
+    tail_errors['Slice'],
+    categories=slice_order,
+    ordered=True,
+)
+
+# A slope chart makes the direction visible: follow each model from all rows
+# toward increasingly weak realized outcomes.
+fig = px.line(
+    tail_errors.sort_values('Slice'),
+    x='Slice',
+    y='MAE (pp)',
+    color='Model',
+    markers=True,
+    text='MAE (pp)',
+    category_orders={'Slice': slice_order},
+    color_discrete_map=MODEL_COLORS,
+    hover_data=['Rows'],
+)
+fig.update_traces(texttemplate='%{text:.1f}', textposition='top center')
+fig.update_xaxes(title='Realized outcome group')
+fig.update_yaxes(title='Mean absolute error (percentage points)')
+chart(
+    fig,
+    'tail_errors',
+    'Forecast errors rise as realized growth gets weaker',
+    'Follow each model from all rows to the bottom quartile and bottom decile',
+)
 quarter_scores.to_csv(OUT / 'quarter_scores.csv', index=False)
 tail_errors.to_csv(OUT / 'tail_errors.csv', index=False)
 weak=tail_errors.loc[(tail_errors.Slice=='Realized bottom 10%')&(tail_errors.Model=='MLP')].iloc[0]
@@ -1724,28 +2031,111 @@ question_card(
 
 # Fix the review capacity at 10% within each quarter. Certificate number breaks
 # ties so the result can be reproduced exactly.
-ranking=[]
-for quarter,part in result_frame.groupby('date'):
-    k=int(np.ceil(.1*len(part)))
-    actual=set(part.sort_values(['growth','CERT']).head(k).CERT)
-    for n in growth_predictions:
-        selected=set(part.sort_values([n,'CERT']).head(k).CERT)
-        hits=len(actual&selected)
-        rho=part.growth.corr(part[n],method='spearman') if part[n].nunique()>1 else np.nan
-        ranking.append({'Quarter':quarter,'Model':n,'Banks':len(part),'Selected':k,'Hits':hits,
-            'Precision':hits/k,'Recall':hits/len(actual),'Spearman':rho,'Random expectation':k/len(part)})
-ranking=pd.DataFrame(ranking)
-ranking_display=ranking[['Quarter','Model','Selected','Hits','Precision','Spearman']].copy()
-ranking_display['Quarter']=pd.to_datetime(ranking_display.Quarter).dt.to_period('Q').astype(str)
-table(ranking_display,'Predicted selection compared with realized weak growth',{'Precision':'{:.1%}','Spearman':'{:.3f}'})
-fig=px.line(ranking,x='Quarter',y='Precision',color='Model',symbol='Model',markers=True,color_discrete_map=MODEL_COLORS)
-fig.update_yaxes(tickformat='.0%', range=[0, 1])
-fig.update_xaxes(
-    tickvals=sorted(result_frame['date'].unique()),
-    tickformat='%b %Y',
+ranking = []
+for quarter, part in result_frame.groupby('date'):
+    selected_count = int(np.ceil(0.10 * len(part)))
+    realized_bottom = set(
+        part.sort_values(['growth', 'CERT'])
+        .head(selected_count)
+        .CERT
+    )
+
+    for model_name in growth_predictions:
+        predicted_bottom = set(
+            part.sort_values([model_name, 'CERT'])
+            .head(selected_count)
+            .CERT
+        )
+        hits = len(realized_bottom & predicted_bottom)
+        has_ranking_signal = part[model_name].nunique() > 1
+        spearman = (
+            part.growth.corr(part[model_name], method='spearman')
+            if has_ranking_signal
+            else np.nan
+        )
+
+        ranking.append(
+            {
+                'Quarter': quarter,
+                'Model': model_name,
+                'Banks': len(part),
+                'Selected': selected_count,
+                'Hits': hits,
+                'Precision': hits / selected_count,
+                'Recall': hits / len(realized_bottom),
+                'Spearman': spearman,
+                'Random expectation': selected_count / len(part),
+            }
+        )
+
+ranking = pd.DataFrame(ranking)
+ranking_display = ranking[
+    ['Quarter', 'Model', 'Selected', 'Hits', 'Precision', 'Spearman']
+].copy()
+ranking_display['Quarter'] = (
+    pd.to_datetime(ranking_display.Quarter)
+    .dt.to_period('Q')
+    .astype(str)
 )
-fig.add_hline(y=.1,line_dash='dash',line_color='#343B43')
-chart(fig,'ranking','How many selected banks actually had weak growth?','Fixed 10% quarterly capacity; dashed line approximates random selection')
+table(
+    ranking_display,
+    'Predicted selection compared with realized weak growth',
+    {'Precision': '{:.1%}', 'Spearman': '{:.3f}'},
+)
+
+# Counts answer the question directly. Percentages remain useful because each
+# quarter contains a slightly different number of banks.
+ranked_models = ranking.loc[
+    ranking.Model.ne('Zero growth')
+].copy()
+ranked_models['Quarter label'] = (
+    pd.to_datetime(ranked_models.Quarter)
+    .dt.strftime('%b %Y')
+)
+ranked_models['Hit label'] = ranked_models.apply(
+    lambda row: (
+        f'{row["Hits"]:.0f} of {row["Selected"]:.0f}'
+        f'<br>{row["Precision"]:.1%}'
+    ),
+    axis=1,
+)
+
+fig = px.bar(
+    ranked_models,
+    x='Quarter label',
+    y='Precision',
+    color='Model',
+    barmode='group',
+    text='Hit label',
+    color_discrete_map=MODEL_COLORS,
+    category_orders={
+        'Model': ['Persistence', 'Ridge', 'MLP'],
+        'Quarter label': ['Mar 2024', 'Jun 2024', 'Sep 2024'],
+    },
+)
+fig.update_traces(textposition='outside', cliponaxis=False)
+fig.update_yaxes(
+    title='Share of selected banks in realized bottom decile',
+    tickformat='.0%',
+    range=[0, 0.31],
+)
+fig.update_xaxes(
+    title='Predictor quarter',
+)
+fig.add_hline(
+    y=0.10,
+    line_dash='dash',
+    line_color='#343B43',
+    annotation_text='Random expectation: about 10%',
+    annotation_position='bottom right',
+)
+chart(
+    fig,
+    'ranking',
+    'How many selected banks actually had weak growth?',
+    'Labels show hits out of banks selected; bars show the same result as a percentage',
+    height=620,
+)
 ranking.to_csv(OUT/'ranking.csv',index=False)
 precision=ranking.loc[ranking.Model.eq('MLP'),'Precision'].mean()
 takeaway('The MLP found few of the weakest outcomes',f'At a 10% quarterly review capacity, {precision:.1%} of the MLP selections landed in the realized bottom decile on average. Ridge produced the stronger ranking.')
@@ -1928,8 +2318,18 @@ def build():
                 prose=prose.split('\n\n')[0]
             cells.append(nbf.v4.new_markdown_cell(('# ' if index==0 else '## ')+title+'\n\n'+prose))
             if source:
-                if index==0:source=f"NOTEBOOK_EDITION = {edition!r}\n"+source
-                cells.append(nbf.v4.new_code_cell(source))
+                if index==0:
+                    source=f"NOTEBOOK_EDITION = {edition!r}\n"+source
+
+                # A teaching notebook should reveal one idea at a time. Source
+                # sections can opt into visible pauses without duplicating the
+                # surrounding prose or changing execution order.
+                code_blocks = source.split('# %% NOTEBOOK CELL')
+                cells.extend(
+                    nbf.v4.new_code_cell(block.strip())
+                    for block in code_blocks
+                    if block.strip()
+                )
         for i,c in enumerate(cells):c.id=hashlib.sha256(f'{edition}:{i}:{c.source}'.encode()).hexdigest()[:12]
         nb=nbf.v4.new_notebook(cells=cells,metadata={'kernelspec':{'display_name':'DL Assignment (.venv)','language':'python','name':'python3'},'language_info':{'name':'python'}})
         nbf.validate(nb)

@@ -42,6 +42,8 @@ class ExperimentTests(unittest.TestCase):
     def test_rendering_contract_and_execution(self):
         for name in ['Masterclass','Submission']:
             nb=nbformat.read(ROOT/f'FDIC_Deep_Learning_{name}.ipynb',as_version=4)
+            source='\n'.join(c.source for c in nb.cells if c.cell_type=='code')
+            self.assertIn('justify-content: center !important',source)
             for c in nb.cells:
                 if c.cell_type=='code':
                     self.assertIsNotNone(c.execution_count)
@@ -67,4 +69,17 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(fig['layout']['hoverlabel']['font']['color'],'#182E3A')
         self.assertEqual(fig['layout']['yaxis']['scaleanchor'],'x')
         self.assertEqual(fig['layout']['xaxis']['range'],fig['layout']['yaxis']['range'])
+
+    def test_diagnostic_charts_answer_their_questions(self):
+        out=ROOT/'growth_outputs/masterclass/charts'
+
+        tail=json.loads((out/'tail_errors.json').read_text())
+        self.assertTrue(all(trace['type']=='scatter' for trace in tail['data']))
+        self.assertTrue(all(trace.get('mode')=='lines+markers+text' for trace in tail['data']))
+
+        ranking=json.loads((out/'ranking.json').read_text())
+        self.assertTrue(all(trace['type']=='bar' for trace in ranking['data']))
+        self.assertEqual(ranking['layout']['yaxis']['range'],[0,0.31])
+        labels=[label for trace in ranking['data'] for label in trace['text']]
+        self.assertTrue(all(' of ' in label for label in labels))
 if __name__=='__main__':unittest.main()

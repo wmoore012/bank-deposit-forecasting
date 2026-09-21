@@ -78,11 +78,27 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(fig['layout']['xaxis']['range'],fig['layout']['yaxis']['range'])
 
         comparison=json.loads((out/'comparison.json').read_text())
-        self.assertEqual(len(comparison['data']),8)
+        self.assertEqual(len(comparison['data']),10)
         self.assertTrue(all(trace['type']=='scatter' for trace in comparison['data']))
-        winners=[trace for trace in comparison['data'] if trace['marker']['color']=='#007F89']
+        winners=[trace for trace in comparison['data'] if trace.get('marker',{}).get('color')=='#007F89']
         self.assertEqual(len(winners),2)
         self.assertEqual({trace['y'][0] for trace in winners},{'Zero growth','MLP'})
+        pending=[trace for trace in comparison['data'] if trace['y']==['TimesFM']]
+        self.assertEqual(len(pending),2)
+        self.assertTrue(all(trace['text']==['Not tested'] for trace in pending))
+        scores=pd.read_csv(ROOT/'growth_outputs/masterclass/historical_scores.csv').set_index('Model')
+        for panel, column in ((comparison['data'][:4],'MAE (pp)'),
+                              (comparison['data'][5:9],'RMSE (pp)')):
+            for trace in panel:
+                self.assertAlmostEqual(trace['x'][0],scores.loc[trace['y'][0],column],places=10)
+
+        nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
+        scorecard_cell=next(cell for cell in nb.cells if cell.cell_type=='code'
+                            and "'comparison'," in cell.source)
+        rendered='\n'.join(output.get('data',{}).get('text/html','')
+                           for output in scorecard_cell.outputs)
+        self.assertIn('TimesFM',rendered)
+        self.assertIn('Not tested',rendered)
 
     def test_eda_inspection_and_time_series_are_saved(self):
         nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
@@ -153,6 +169,35 @@ class ExperimentTests(unittest.TestCase):
         )] if cell.cell_type=='code')
         self.assertNotIn("table(\n    metrics,",core_source)
         self.assertNotIn("table(\n    ranking_display,",core_source)
+
+    def test_error_tradeoff_and_untested_candidates_are_explicit(self):
+        out=ROOT/'growth_outputs/masterclass'
+        tradeoff=pd.read_csv(out/'error_tradeoff.csv').set_index('Band')
+        scores=pd.read_csv(out/'historical_scores.csv').set_index('Model')
+
+        self.assertEqual(int(tradeoff.Rows.sum()),13532)
+        self.assertGreater(tradeoff.loc['Smallest 90%','MLP minus zero (pp)'],0)
+        self.assertLess(tradeoff.loc['Largest 1%','MLP minus zero (pp)'],0)
+        weighted=np.average(tradeoff['MLP minus zero (pp)'],weights=tradeoff.Rows)
+        self.assertAlmostEqual(
+            weighted,
+            scores.loc['MLP','MAE (pp)']-scores.loc['Zero growth','MAE (pp)'],
+            places=6,
+        )
+
+        chart=json.loads((out/'charts/error_tradeoff.json').read_text())
+        self.assertEqual(chart['data'][0]['marker']['color'],
+                         ['#AF7721','#007F89','#007F89'])
+        self.assertTrue(any(shape['x0']==0 and shape['x1']==0
+                            for shape in chart['layout']['shapes']))
+
+        nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
+        source='\n'.join(cell.source for cell in nb.cells)
+        self.assertIn("y=['TimesFM']",source)
+        self.assertIn('What does the 4.3% improvement buy us?',source)
+        self.assertIn('Would anomaly detection give us a better review list?',source)
+        self.assertIn('Future-quarter balances cannot enter a score',source)
+        self.assertNotIn('TimesFM,', (out/'historical_scores.csv').read_text())
 
     def test_saved_tables_keep_human_reading_order(self):
         out=ROOT/'growth_outputs/masterclass'

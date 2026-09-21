@@ -2205,6 +2205,24 @@ section('8 · Does the neural network improve the forecast?', '''
 The two dot panels carry the exact scores; the full score table is saved as a CSV.
 The scatter asks a different question: do individual predictions move with reality?
 
+**Two scores can disagree without either being wrong.** MAE averages the size of each miss.
+RMSE squares each miss first, so a few large misses exert more influence. After the
+scorecard, we will group errors by size to see where the MLP helped and hurt.
+
+**What would make us investigate a bank?** A 4.3% improvement in an aggregate
+error score cannot answer that. We need an advance ranking at a stated review
+capacity, followed by a count of how many selected banks actually had weak
+growth. Even a useful ranking is a lead for an analyst, not evidence of a
+problem at any particular bank.
+
+[TimesFM](https://github.com/google-research/timesfm) is a possible next challenger,
+but it has **no score in this experiment**. It can read a bank's sequence of
+quarterly balances, which might capture time patterns the five-input MLP misses.
+That is a testable idea, not a measured improvement. Google's current 3.0
+pretrained weights are research-only under a noncommercial license; a fair
+comparison also needs the same prediction dates, available history, and a
+later untouched evaluation period.
+
 On the diagonal, prediction equals outcome. Above it, the model predicts too much growth.
 Below it, the model predicts too little. Both axes use the same units and scale.
 Every eligible evaluation row remains in the scores and saved predictions.
@@ -2289,6 +2307,22 @@ for column_number, metric_name in enumerate(
             row=1,
             col=column_number,
         )
+    # Keep the proposed challenger on the same scorecard without drawing a
+    # fictitious point or treating an untested method as a winner.
+    fig.add_trace(
+        go.Scatter(
+            x=[metric_values.min()],
+            y=['TimesFM'],
+            mode='text',
+            text=['Not tested'],
+            textposition='middle right',
+            textfont={'color': '#65717D', 'size': 13},
+            showlegend=False,
+            hovertemplate='TimesFM: no historical score in this experiment<extra></extra>',
+        ),
+        row=1,
+        col=column_number,
+    )
     fig.update_xaxes(
         title='Percentage points; lower is better',
         range=[max(0, metric_values.min() - .25), metric_values.max() + .9],
@@ -2297,7 +2331,7 @@ for column_number, metric_name in enumerate(
     )
     fig.update_yaxes(
         categoryorder='array',
-        categoryarray=list(reversed(MODEL_ORDER)),
+        categoryarray=list(reversed(MODEL_ORDER + ['TimesFM'])),
         row=1,
         col=column_number,
     )
@@ -2306,8 +2340,8 @@ chart(
     fig,
     'comparison',
     'Which forecast has the smallest error?',
-    'Zero growth has the lowest MAE; the MLP has the lowest RMSE',
-    height=460,
+    'Zero growth has the lowest MAE; the MLP has the lowest RMSE. TimesFM is untested.',
+    height=500,
 )
 
 # Check the large misses directly before interpreting the RMSE result.
@@ -2328,6 +2362,120 @@ assert large_error_check.loc[
     large_error_check.Model.eq('Zero growth'),
     '99th percentile absolute error (pp)',
 ].iloc[0]
+
+# %% NOTEBOOK CELL
+# EXEMPLAR: analytical-question
+question_card(
+    title='How can the MLP win RMSE but lose MAE?',
+    theme=theme,
+    body=(
+        'A 10-point miss contributes 10 to absolute error but 100 to '
+        'squared error. Group the same 2024 rows by the zero-growth miss '
+        'and see where the MLP traded accuracy.'
+    ),
+    kicker='Read the scorecard',
+    chip_text='QUESTION',
+)
+
+# %% NOTEBOOK CELL
+# Group by realized baseline error for diagnosis only. This grouping uses
+# the future outcome and cannot be used to select a bank in advance.
+zero_absolute_error = np.abs(
+    100 * (np.expm1(y_test) - np.expm1(log_predictions['Zero growth']))
+)
+mlp_absolute_error = np.abs(
+    100 * (np.expm1(y_test) - np.expm1(log_predictions['MLP']))
+)
+
+cutoffs = np.quantile(zero_absolute_error, [.90, .99])
+error_bands = pd.DataFrame({
+    'Zero-growth miss (pp)': zero_absolute_error,
+    'MLP miss (pp)': mlp_absolute_error,
+})
+error_bands['Band'] = pd.cut(
+    error_bands['Zero-growth miss (pp)'],
+    bins=[-np.inf, *cutoffs, np.inf],
+    labels=['Smallest 90%', 'Next 9%', 'Largest 1%'],
+)
+
+tradeoff = (
+    error_bands.groupby('Band', observed=True)
+    .agg(
+        Rows=('Band', 'size'),
+        Zero_growth_MAE_pp=('Zero-growth miss (pp)', 'mean'),
+        MLP_MAE_pp=('MLP miss (pp)', 'mean'),
+    )
+    .reset_index()
+)
+tradeoff['MLP minus zero (pp)'] = (
+    tradeoff['MLP_MAE_pp'] - tradeoff['Zero_growth_MAE_pp']
+)
+tradeoff.to_csv(OUT / 'error_tradeoff.csv', index=False)
+
+fig = go.Figure()
+fig.add_bar(
+    x=tradeoff['MLP minus zero (pp)'],
+    y=tradeoff['Band'].astype(str),
+    orientation='h',
+    marker_color=[
+        '#AF7721' if delta > 0 else '#007F89'
+        for delta in tradeoff['MLP minus zero (pp)']
+    ],
+    text=[f'{delta:+.2f} pp' for delta in tradeoff['MLP minus zero (pp)']],
+    textposition='outside',
+    customdata=tradeoff['Rows'],
+    hovertemplate=(
+        '%{y}<br>MLP minus zero-growth MAE: %{x:+.3f} pp'
+        '<br>%{customdata:,} bank-quarters<extra></extra>'
+    ),
+)
+fig.add_vline(x=0, line_color='#343B43', line_width=1.5)
+fig.update_xaxes(
+    title='MLP minus zero-growth mean absolute miss (pp)',
+    range=[-4.5, 1.2],
+)
+fig.update_yaxes(
+    title='',
+    categoryorder='array',
+    categoryarray=['Largest 1%', 'Next 9%', 'Smallest 90%'],
+)
+chart(
+    fig,
+    'error_tradeoff',
+    'The MLP helps most where zero growth misses most',
+    'Teal left of zero: MLP helped. Amber right: MLP hurt. Outcome-defined groups.',
+    height=480,
+)
+
+common = tradeoff.loc[tradeoff.Band.eq('Smallest 90%')].iloc[0]
+largest = tradeoff.loc[tradeoff.Band.eq('Largest 1%')].iloc[0]
+takeaway(
+    'The MLP trades small misses for fewer large misses',
+    (
+        f'On {int(common.Rows):,} smaller-miss rows, its average absolute '
+        f'error was {common["MLP minus zero (pp)"]:+.2f} pp relative to '
+        f'zero growth. On the largest {int(largest.Rows):,} baseline misses, '
+        f'it was {largest["MLP minus zero (pp)"]:+.2f} pp. '
+        'These groups use realized outcomes, so this chart explains the '
+        'scores after the fact; it cannot choose banks for review beforehand.'
+    ),
+)
+
+rmse_so_far = metrics.set_index('Model')['RMSE (pp)']
+relative_rmse_drop = 100 * (
+    rmse_so_far['Zero growth'] - rmse_so_far['MLP']
+) / rmse_so_far['Zero growth']
+takeaway(
+    'What does the 4.3% improvement buy us?',
+    (
+        f'The MLP lowered RMSE by {relative_rmse_drop:.1f}% relative to zero '
+        'growth, yet zero growth still had the lower MAE. This measures '
+        'forecast error across many bank-quarters, not the chance that any '
+        'one bank needs investigation. The next check asks whether predicted '
+        'rankings put more truly weak-growth banks into a fixed-size review '
+        'list. An analyst must still verify the source report and context.'
+    ),
+)
 
 # %% NOTEBOOK CELL
 
@@ -2544,6 +2692,10 @@ takeaway('Check the weak-outcome error before using the forecast',f'The MLP miss
 section('10 · Could we identify weak growth beforehand?', '''
 **Rank using predictions first; compare with outcomes second.** For each quarter, select the lowest
 predicted-growth 10% of banks. Then count how many actually belong to the lowest-growth 10%.
+This is the decision check the 4.3% RMSE figure cannot provide: at a capacity
+of about 450 banks per quarter, does the model give analysts a better starting
+list than chance? The answer is a historical prioritization result, not a
+finding of misconduct, distress, or an economic cause.
 
 Precision asks: of the banks selected, how many were in the realized bottom decile?
 Recall asks: of the realized bottom decile, how many were selected?
@@ -2680,6 +2832,92 @@ takeaway(
     'Three reused quarters cannot establish which model would lead later.',
 )
 ''')
+section('Can anomaly detection help decide where to look?', '''
+**Yes, it is a useful next experiment.** The forecast asks which bank may have weak
+growth next quarter. An anomaly score asks whose *observed* report looks unusual
+relative to its own past or comparable banks. Those are different review questions.
+
+An unusual balance can reflect a merger, a reporting change, or genuine funding
+pressure. A useful review queue must surface relevant cases at a capacity analysts
+can handle. This notebook has not measured anomaly-detection precision or the cost
+of false alerts. Future-quarter balances cannot enter a score used to decide what
+to review today.
+''',r'''
+# EXEMPLAR: analytical-question
+question_card(
+    title='Would anomaly detection give us a better review list?',
+    theme=theme,
+    body=(
+        'Possibly. First decide whether the job is to anticipate a future '
+        'decline or to investigate an unusual report already in hand.'
+    ),
+    kicker='Next decision',
+    chip_text='QUESTION',
+)
+
+# %% NOTEBOOK CELL
+# EXEMPLAR: decision-ledger
+# Each row names the evidence available when an analyst makes the decision.
+review_questions = pd.DataFrame([
+    {
+        'Question': 'Who may have weak growth next quarter?',
+        'Method': 'Forecast ranking',
+        'Evidence here': 'Tested on three 2024 quarters',
+        'Next check': 'Repeat on a later untouched period',
+    },
+    {
+        'Question': 'Whose report looks unusual today?',
+        'Method': 'Anomaly detection',
+        'Evidence here': 'Not tested',
+        'Next check': 'Review top-ranked cases and false alerts',
+    },
+    {
+        'Question': 'Does this bank need follow-up?',
+        'Method': 'Human source review',
+        'Evidence here': 'Reporting changes can mimic events',
+        'Next check': 'Check filings, entity changes, and context',
+    },
+])
+table(
+    review_questions,
+    'Three questions, three different kinds of evidence',
+    wrap_columns={
+        'Question': 230,
+        'Method': 150,
+        'Evidence here': 190,
+        'Next check': 230,
+    },
+)
+
+# %% NOTEBOOK CELL
+# EXEMPLAR: counterintuitive-boundary
+wm_counterintuitive_card(
+    title='Unusual is a reason to look, not a diagnosis',
+    theme=theme,
+    why_misread=(
+        'A sudden deposit change can look like a warning signal.'
+    ),
+    ordinary_process=(
+        'Mergers, name changes, and reporting differences can also make a '
+        'bank look unusual. The validation audit found a same-certificate '
+        'name change beside an extreme balance jump.'
+    ),
+    conclusion_boundary=(
+        'Test an anomaly score on information available at the review date. '
+        'At a fixed review capacity, measure useful cases and false alerts '
+        'against analyst-reviewed records before recommending it.'
+    ),
+    kicker='Interpretation check',
+    chip_text='CHECK',
+)
+takeaway(
+    'Anomaly detection deserves a separate trial',
+    'The current ranking found weak-growth banks better than chance in three '
+    'historical quarters. That does not tell us whether an anomaly score would '
+    'send analysts to better cases. Evaluate it with the same review capacity '
+    'and a clear definition of a useful review.',
+)
+''')
 section('11 · What did we learn, and what would we do next?', '''
 **The small neural network did not establish a dependable forecasting advantage on the reused 2024
 holdout.** A zero-growth forecast had the lowest MAE at **3.60 percentage points**. The MLP scored **3.63
@@ -2695,6 +2933,11 @@ although three reused quarters provide limited evidence about how the ranking wo
 The evidence supports a simple operating choice. Keep zero growth as the accuracy benchmark, retain Ridge
 as the transparent feature model, and treat the MLP as an unproven research candidate. Audit large misses
 for mergers and institutional changes, then evaluate all three on a later untouched period.
+
+**Should we try something else?** Yes. Anomaly detection may help prioritize reports
+that look unusual *now*; it has not been tested here. TimesFM may make better use of
+bank histories; it also has no score here. Neither possibility changes the measured
+MAE, RMSE, or review precision of the four evaluated methods.
 
 **Why can zero growth win MAE while the MLP wins RMSE?** They reward different behavior.
 An error of 10 percentage points contributes 10 to absolute error and 100 to squared error.
@@ -2716,7 +2959,8 @@ conclusion = (
     f'growth ({mae["MLP"]:.3f} versus {mae["Zero growth"]:.3f} pp MAE). '
     f'It had the lowest RMSE ({rmse["MLP"]:.3f} pp), and its 99th-percentile '
     'absolute error was below zero growth. Its small edge over Ridge does not '
-    'establish dependable nonlinear value. These are three reused 2024 quarters. '
+    'establish dependable nonlinear value. TimesFM and anomaly detection were '
+    'not evaluated. These are three reused 2024 quarters. '
     'All four comparisons: '
     + '; '.join(
         f'{model}: MAE {mae[model]:.3f}, RMSE {rmse[model]:.3f} pp'
@@ -2886,6 +3130,7 @@ def arrange_story():
         evaluation,
         tail_errors,
         ranking,
+        anomaly_section,
         conclusion,
         seeds,
         bootstrap,
@@ -3002,7 +3247,13 @@ wm_counterintuitive_card(
     evaluation = ('10 · Which forecast errs least?', evaluation[1], evaluation[2], False)
     tail_errors = ('11 · Where are the large misses?', tail_errors[1], tail_errors[2], False)
     ranking = ('12 · Which selected banks had weak growth?', ranking[1], ranking[2], False)
-    conclusion = ('13 · What did we learn?', conclusion[1], conclusion[2], False)
+    anomaly_section = (
+        '13 · Would unusual reports give us a better review list?',
+        anomaly_section[1],
+        anomaly_section[2],
+        False,
+    )
+    conclusion = ('14 · What did we learn?', conclusion[1], conclusion[2], False)
 
     sections[:] = [
         introduction,
@@ -3018,6 +3269,7 @@ wm_counterintuitive_card(
         evaluation,
         tail_errors,
         ranking,
+        anomaly_section,
         conclusion,
         comparability_appendix,
         seeds,

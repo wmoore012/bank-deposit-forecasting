@@ -12,3 +12,4 @@ output*.png
 growth_outputs/*/charts/
 FDIC_LogGrowth_Masterclass/
 masterclass_outputs/
+/career/*RESUME*.md

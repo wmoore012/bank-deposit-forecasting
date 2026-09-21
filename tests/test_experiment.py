@@ -69,6 +69,25 @@ class ExperimentTests(unittest.TestCase):
         for trace in comparison['data']:
             self.assertEqual(trace['marker']['color'].count('#007F89'),1)
 
+    def test_eda_inspection_and_time_series_are_saved(self):
+        nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
+        source='\n'.join(cell.source for cell in nb.cells if cell.cell_type=='code')
+        for check in ['post_conversion.head()', 'post_conversion.info(', 'post_conversion.isna().sum()', '.describe()', 'display_data_chips(', 'style_describe_wm(']:
+            self.assertIn(check, source)
+
+        charts=ROOT/'growth_outputs/masterclass/charts'
+        for name, field in [('reporting_banks_time','Reporting banks'), ('median_deposits_time','Median deposits (USD million)')]:
+            fig=json.loads((charts/f'{name}.json').read_text())
+            self.assertEqual(fig['data'][0]['type'],'scatter')
+            self.assertEqual(fig['data'][0]['mode'],'lines+markers')
+            self.assertGreaterEqual(len(fig['data'][0]['x']),48)
+            self.assertIn(field, json.dumps(fig['layout']))
+
+        html='\n'.join(output.get('data',{}).get('text/html','') for cell in nb.cells for output in cell.get('outputs',[]))
+        self.assertIn('Largest training changes: balances in USD thousands', html)
+        self.assertIn('What do the five training inputs look like?', html)
+        self.assertNotIn('214,425.0000', html)
+
     def test_diagnostic_charts_answer_their_questions(self):
         out=ROOT/'growth_outputs/masterclass/charts'
 

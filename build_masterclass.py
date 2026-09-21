@@ -32,7 +32,7 @@ Report publication times and historical vintages are unavailable. Treat this as 
 The same banks may appear in earlier and later periods.
 ''',r'''
 # EXEMPLAR: bootstrap
-import os, sys, json, hashlib, platform, time, html, textwrap
+import os, sys, json, hashlib, platform, time, html, textwrap, io
 from pathlib import Path
 os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL','2')
 os.environ.setdefault('MPLCONFIGDIR',str(Path.cwd()/'.mpl-cache'))
@@ -61,7 +61,8 @@ from wm_notecards.charts import (
     style_fig_wm,
     wm_render_figure_card,
 )
-from wm_notecards.tables import wm_render_styler
+from wm_notecards.eda import display_data_chips
+from wm_notecards.tables import display_cols_by_dtype, style_describe_wm, wm_render_styler
 SEED = 42
 FEATURES = [
     'log_deposits',
@@ -127,7 +128,7 @@ display(
 display(HTML('<script>' + get_plotlyjs() + '</script>'))
 
 
-def table(frame, title, formats=None):
+def table(frame, title, formats=None, wrap_columns=None):
     """Render a dataframe with the same centered teaching-card treatment."""
     default_formats = {
         column: (lambda value: value.strftime('%Y-%m-%d'))
@@ -145,16 +146,17 @@ def table(frame, title, formats=None):
         default_formats,
         na_rep='Missing',
     )
-    wrap_columns = {
+    default_wrap = {
         column: 290
         for column in frame
         if pd.api.types.is_string_dtype(frame[column])
     }
+    default_wrap.update(wrap_columns or {})
     wm_render_styler(
         styled,
         theme=theme,
         title=title,
-        wrap_columns=wrap_columns,
+        wrap_columns=default_wrap,
     )
 
 
@@ -370,6 +372,73 @@ table(
     'The same five rows: financial balances in USD thousands',
 )
 table(schema_table(post_conversion), 'Column types, missing values, and cardinality')
+
+# The familiar pandas checks come first. The cards below explain their results.
+post_conversion.head()
+# %% NOTEBOOK CELL
+info_buffer = io.StringIO()
+post_conversion.info(buf=info_buffer, memory_usage='deep')
+print(info_buffer.getvalue())
+# %% NOTEBOOK CELL
+post_conversion.isna().sum().sort_values(ascending=False)
+# %% NOTEBOOK CELL
+source_summary = post_conversion[
+    ['DEPDOM', 'ASSET', 'LNLSNET', 'CHBAL', 'EQ']
+].describe()
+display(source_summary)
+# %% NOTEBOOK CELL
+display_data_chips(
+    post_conversion,
+    theme=theme,
+    identifier_columns=['CERT'],
+    datetime_columns=['REPDTE'],
+    categorical_columns=['STALP', 'NAME'],
+    group_label='What each source column means',
+)
+display_cols_by_dtype(
+    post_conversion.dtypes,
+    theme=theme,
+    group_label='How pandas stores these columns',
+)
+wm_render_styler(
+    style_describe_wm(source_summary, theme),
+    theme=theme,
+    title='Source balances: the familiar describe() summary',
+)
+
+# A bank-quarter panel has a history. Count reporting banks and track the
+# median deposit balance so changes in the population are visible in time.
+quarterly_panel = (
+    post_conversion.assign(
+        Date=pd.to_datetime(post_conversion['REPDTE'].astype(str))
+    )
+    .groupby('Date', as_index=False)
+    .agg(
+        Banks=('CERT', 'nunique'),
+        Median_deposits=('DEPDOM', 'median'),
+    )
+    .sort_values('Date')
+)
+quarterly_panel['Median deposits (USD million)'] = (
+    quarterly_panel['Median_deposits'] / 1000
+)
+
+fig = px.line(quarterly_panel, x='Date', y='Banks', markers=True)
+fig.update_traces(line=dict(color='#007F89', width=3), marker=dict(size=5))
+fig.update_yaxes(title='Reporting banks', rangemode='tozero')
+chart(fig, 'reporting_banks_time', 'How many banks report each quarter?',
+      '2013–2024; distinct bank certificates')
+
+fig = px.line(
+    quarterly_panel,
+    x='Date',
+    y='Median deposits (USD million)',
+    markers=True,
+)
+fig.update_traces(line=dict(color='#AF7721', width=3), marker=dict(size=5))
+fig.update_yaxes(title='Median deposits (USD million)', rangemode='tozero')
+chart(fig, 'median_deposits_time', 'How does a typical reported balance change?',
+      'Median domestic deposits per reporting bank; USD million')
 
 assert not long_history.duplicated(keys).any()
 assert not post_conversion.duplicated(keys).any()
@@ -887,13 +956,17 @@ missing_next = ordered_rows(
 table(missing_next, 'A missing future balance stays missing')
 
 fig = px.bar(
-    missing_next,
+    missing_next.loc[missing_next['Next report status'].ne('Adjacent next report')],
     x='Rows',
     y='Next report status',
     orientation='h',
+    text='Rows',
     color_discrete_sequence=['#007F89'],
 )
-chart(fig, 'next_report', 'Which outcomes are observable?')
+fig.update_traces(texttemplate='%{text:,}', textposition='outside')
+fig.update_layout(margin=dict(l=230, r=100, t=110, b=65))
+chart(fig, 'next_report', 'Why are some next-quarter outcomes unavailable?',
+      'Counts exclude the adjacent reports shown in the table')
 
 unobserved_columns = [
     'CERT',
@@ -949,13 +1022,17 @@ assert len(panel) - len(rows) == eligibility_ledger['Removed'].sum()
 table(eligibility_ledger, 'Every exclusion has a count')
 
 fig = px.bar(
-    eligibility_ledger,
-    x='Remaining',
+    eligibility_ledger.loc[eligibility_ledger['Rule'].ne('All source rows')],
+    x='Removed',
     y='Rule',
     orientation='h',
-    color_discrete_sequence=['#007F89'],
+    text='Removed',
+    color_discrete_sequence=['#AF7721'],
 )
-chart(fig, 'eligibility', 'Which rows enter the forecasting population?')
+fig.update_traces(texttemplate='%{text:,}', textposition='outside')
+fig.update_layout(margin=dict(l=280, r=105, t=110, b=65))
+chart(fig, 'eligibility', 'Which eligibility checks remove rows?',
+      'Each count is incremental; the table keeps the running population')
 
 takeaway(
     'The forecasting rows have three consecutive positive balances',
@@ -1283,7 +1360,12 @@ shown_extremes = shown_extremes.assign(
 table(
     shown_extremes,
     'Largest training changes: balances in USD thousands',
-    {'growth': '{:+.2%}'},
+    {
+        'DEPDOM': '{:,.0f}',
+        'next_deposits': '{:,.0f}',
+        'growth': '{:+.2%}',
+    },
+    wrap_columns={'NAME': 340},
 )
 
 extremes.to_csv(OUT / 'extreme_review.csv', index=False)
@@ -1424,13 +1506,17 @@ feature_summary = (
     .T
     .reset_index(names='Feature')
 )
+feature_summary = feature_summary[
+    ['Feature', 'count', 'mean', '1%', '50%', '99%', 'max']
+]
 table(
     feature_summary,
     'What do the five training inputs look like?',
-    {
+    {'count': '{:,.0f}', **{
         column: '{:,.4f}'
-        for column in feature_summary.select_dtypes(include='number').columns
-    },
+        for column in ['mean', '1%', '50%', '99%', 'max']
+    }},
+    wrap_columns={'Feature': 180},
 )
 
 # Correlation answers whether the five fixed inputs repeat the same information.

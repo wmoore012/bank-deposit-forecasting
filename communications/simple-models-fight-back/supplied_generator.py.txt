@@ -1,0 +1,411 @@
+#!/usr/bin/env python3
+"""
+Build a revised "Simple Models Fight Back" wm-notecards carousel with honest scales and corrected flow.
+"""
+
+from pathlib import Path
+import asyncio
+import shutil
+from PIL import Image
+from pptx import Presentation
+from pptx.util import Inches
+from playwright.async_api import async_playwright
+
+OUTDIR = Path(__file__).resolve().parent
+HTML_FILE = OUTDIR / "simple_models_fight_back_notecards_v11.html"
+RENDER_DIR = OUTDIR / "renders_v11"
+PPTX_FILE = OUTDIR / "simple_models_fight_back_notecards_v11.pptx"
+PDF_FILE = OUTDIR / "simple_models_fight_back_notecards_v11.pdf"
+
+INK = "#2C3034"
+MUTED = "#73777B"
+GRID = "#E9E7E1"
+CYAN = "#17BDE0"
+TEAL = "#0B6F75"
+BLUE = "#3F6294"
+PALE_BLUE = "#91A9CC"
+AMBER = "#B76B1E"
+WARM_BG = "#F6F5F0"
+CARD_BG = "#FFFEFB"
+
+
+def dotgrid_svg(highlights, color, title, big, sub, x=0, y=0, width=320, dot=12, gap=22, rows=10, cols=10):
+    dots = []
+    for i in range(rows * cols):
+        r = i // cols
+        c = i % cols
+        fill = color if i < highlights else "#D5D3CD"
+        dots.append(f'<circle cx="{x + c*gap}" cy="{y + r*gap}" r="{dot/2}" fill="{fill}"/>')
+    return f"""
+      <g transform="translate({(width - (cols-1)*gap)/2},0)">
+        <text x="{x + (cols-1)*gap/2}" y="{y-34}" text-anchor="middle" fill="{MUTED}" font-size="27" font-weight="900" letter-spacing="0">{title}</text>
+        {''.join(dots)}
+        <text x="{x + (cols-1)*gap/2}" y="{y + rows*gap + 42}" text-anchor="middle" fill="{color}" font-size="43" font-weight="900">{big}</text>
+        <text x="{x + (cols-1)*gap/2}" y="{y + rows*gap + 76}" text-anchor="middle" fill="{MUTED}" font-size="23" font-weight="900">{sub}</text>
+      </g>
+    """
+
+
+
+def zero_hist_svg():
+    # Actual central-98% training log-growth distribution extracted from the
+    # notebook's target_growth_side_by_side Plotly trace. Units below are
+    # percentage points (100 * log_growth); tails remained in the model data.
+    counts = [921, 1399, 2389, 4227, 7526, 13715, 23032, 33060, 34073, 28065,
+              19857, 13634, 8895, 5846, 3947, 2770, 1938, 1401, 1022, 723,
+              580, 441, 367, 307]
+    edges = [-10.9688, -9.5678, -8.1668, -6.7658, -5.3647, -3.9637, -2.5627,
+             -1.1617, 0.2393, 1.6404, 3.0414, 4.4424, 5.8434, 7.2444, 8.6455,
+             10.0465, 11.4475, 12.8485, 14.2495, 15.6506, 17.0516, 18.4526,
+             19.8536, 21.2546, 22.6557]
+    median = 0.9987
+    xmin, xmax = edges[0], edges[-1]
+    left, right, top, base = 90, 1040, 40, 280
+    maxh = max(counts)
+    def sx(v):
+        return left + (v - xmin) / (xmax - xmin) * (right-left)
+    bars = []
+    for i, c in enumerate(counts):
+        x1, x2 = sx(edges[i]), sx(edges[i+1])
+        h = (base-top-26) * c / maxh
+        bars.append(
+            f'<rect x="{x1+1:.1f}" y="{base-h:.1f}" width="{max(2, x2-x1-2):.1f}" '
+            f'height="{h:.1f}" rx="3" fill="#BEC3C5"/>'
+        )
+    zero_x = sx(0)
+    med_x = sx(median)
+    ticks = [-10, 0, 10, 20]
+    parts = [
+        f'<line x1="{left}" y1="{base}" x2="{right}" y2="{base}" stroke="#D6D4CE" stroke-width="2"/>',
+        ''.join(bars),
+        f'<line x1="{zero_x:.1f}" y1="{top}" x2="{zero_x:.1f}" y2="{base}" stroke="{CYAN}" stroke-width="6"/>',
+        f'<text x="{zero_x:.1f}" y="28" text-anchor="middle" fill="#0A9CB8" font-size="24" font-weight="950">ZERO FORECAST</text>',
+        f'<circle cx="{med_x:.1f}" cy="{base}" r="7" fill="{AMBER}" stroke="{CARD_BG}" stroke-width="2"/>',
+        f'<text x="{med_x+18:.1f}" y="{base-12}" fill="{AMBER}" font-size="19" font-weight="900">training median ≈ 1.0 pp</text>',
+    ]
+    for t in ticks:
+        x=sx(t)
+        parts.append(f'<line x1="{x:.1f}" y1="{base}" x2="{x:.1f}" y2="{base+8}" stroke="#BDBBB5" stroke-width="2"/>')
+        parts.append(f'<text x="{x:.1f}" y="{base+34}" text-anchor="middle" fill="{MUTED}" font-size="18" font-weight="800">{t:+g} pp</text>')
+    parts.append(f'<text x="{(left+right)/2}" y="352" text-anchor="middle" fill="{MUTED}" font-size="18" font-weight="800">next-quarter log growth · central 98% of training targets shown</text>')
+    return f'<svg viewBox="0 0 1130 370" aria-hidden="true">{"".join(parts)}</svg>'
+
+
+
+
+def dotplot_svg(values, labels, colors, xmax, ticks, width=820, height=320):
+    # Honest zero-baseline scale sized for a side-by-side panel.
+    # Extra left padding prevents long labels from clipping in the exported PDF.
+    left, right, top, gap_y = 290, 790, 52, 58
+    def scale(v):
+        return left + v / xmax * (right-left)
+    base_y = top + gap_y*(len(values)-1) + 38
+    parts = [f'<line x1="{left}" y1="{base_y}" x2="{right}" y2="{base_y}" stroke="{GRID}" stroke-width="2"/>']
+    for t in ticks:
+        x=scale(t)
+        parts.append(f'<line x1="{x}" y1="30" x2="{x}" y2="{base_y}" stroke="#F0EEE8" stroke-width="1.5"/>')
+        parts.append(f'<text x="{x}" y="{height-18}" text-anchor="middle" fill="{MUTED}" font-size="20" font-weight="800">{t:g}</text>')
+    for i,(v,lab,col) in enumerate(zip(values,labels,colors)):
+        y=top+i*gap_y
+        x=scale(v)
+        is_first=i==0
+        parts.append(f'<text x="{left-22}" y="{y+8}" text-anchor="end" fill="{INK if is_first else MUTED}" font-size="26" font-weight="{950 if is_first else 850}">{lab}</text>')
+        parts.append(f'<line x1="{left}" y1="{y}" x2="{x}" y2="{y}" stroke="#D8D6D0" stroke-width="7" stroke-linecap="round"/>')
+        parts.append(f'<circle cx="{x}" cy="{y}" r="{14 if is_first else 11}" fill="{col}" stroke="{CARD_BG}" stroke-width="2"/>')
+        tx=x+20; anchor='start'
+        if tx > right-52:
+            tx=x-18; anchor='end'
+        parts.append(f'<text x="{tx}" y="{y+9}" text-anchor="{anchor}" fill="{INK if is_first else MUTED}" font-size="25" font-weight="{950 if is_first else 850}">{v:.3f}</text>')
+    return f'<svg viewBox="0 0 {width} {height}" aria-hidden="true">{"".join(parts)}</svg>'
+
+def rank_ties_svg():
+    rows = []
+    for i in range(10):
+        y = 55 + i*31
+        rows.append(f'<text x="185" y="{y+7}" text-anchor="end" fill="{MUTED}" font-size="23" font-weight="900">BANK {i+1:02d}</text>')
+        rows.append(f'<circle cx="380" cy="{y}" r="8" fill="{CYAN}"/>')
+        rows.append(f'<text x="420" y="{y+8}" fill="{INK}" font-size="22" font-weight="900">0%</text>')
+    return f"""
+    <svg viewBox="0 0 650 385" aria-hidden="true">
+      <text x="380" y="27" text-anchor="middle" fill="#0A9CB8" font-size="26" font-weight="950">PREDICTED GROWTH</text>
+      <line x1="380" y1="42" x2="380" y2="346" stroke="{CYAN}" stroke-width="7" stroke-linecap="round"/>
+      {''.join(rows)}
+      <text x="380" y="376" text-anchor="middle" fill="{MUTED}" font-size="19" font-weight="900">all ten are tied</text>
+    </svg>
+    """
+
+
+def review_grids_svg():
+    return f"""
+    <svg viewBox="0 0 1500 410" aria-hidden="true">
+      <g transform="translate(80,70)">
+        {dotgrid_svg(10, "#7F878A", "RANDOM SELECTION", "45.4 expected", "10.0%", width=360)}
+      </g>
+      <g transform="translate(565,70)">
+        {dotgrid_svg(25, CYAN, "RIDGE", "112 hits", "24.7%", width=360)}
+      </g>
+      <g transform="translate(1050,70)">
+        {dotgrid_svg(24, TEAL, "NEURAL NETWORK", "109 hits", "24.0%", width=360)}
+      </g>
+    </svg>
+    """
+
+
+def lift_svg():
+    models = [
+        ("Previous quarter", 1.26, "#70808E"),
+        ("Size-only Ridge", 1.88, PALE_BLUE),
+        ("Five-feature Ridge", 2.19, BLUE),
+        ("Neural network", 2.17, TEAL),
+    ]
+    xmin, xmax = 1.0, 2.35
+    left, right = 350, 1120
+    def scale(v):
+        return left + (v-xmin)/(xmax-xmin)*(right-left)
+    parts = []
+    for t in [1.0,1.5,2.0,2.3]:
+        x=scale(t)
+        parts.append(f'<line x1="{x}" y1="42" x2="{x}" y2="332" stroke="#EEECE6" stroke-width="1.5"/>')
+        parts.append(f'<text x="{x}" y="360" text-anchor="middle" fill="{MUTED}" font-size="18" font-weight="800">{t:.1f}×</text>')
+    parts.append(f'<line x1="{scale(1)}" y1="42" x2="{scale(1)}" y2="332" stroke="#8F999E" stroke-width="3" stroke-dasharray="9 9"/>')
+    parts.append(f'<text x="{scale(1)}" y="30" text-anchor="middle" fill="{MUTED}" font-size="19" font-weight="950">RANDOM</text>')
+    for i,(lab,val,col) in enumerate(models):
+        y=82+i*64
+        x=scale(val)
+        parts.append(f'<text x="{left-28}" y="{y+8}" text-anchor="end" fill="{MUTED}" font-size="25" font-weight="900">{lab}</text>')
+        parts.append(f'<line x1="{scale(1)}" y1="{y}" x2="{x}" y2="{y}" stroke="#D6D4CE" stroke-width="6" stroke-linecap="round"/>')
+        parts.append(f'<circle cx="{x}" cy="{y}" r="{15 if "Size-only" in lab else 12}" fill="{col}" stroke="{CARD_BG}" stroke-width="2"/>')
+        parts.append(f'<text x="{x+24}" y="{y+9}" fill="{INK}" font-size="28" font-weight="950">{val:.2f}×</text>')
+    parts.append(f'<text x="{(left+right)/2}" y="392" text-anchor="middle" fill="{MUTED}" font-size="19" font-weight="850">review-list lift relative to random selection</text>')
+    return f'<svg viewBox="0 0 1250 410" aria-hidden="true">{"".join(parts)}</svg>'
+
+
+def seasonality_svg():
+    qs = [("Q1",45.5),("Q2",42.6),("Q3",33.8),("Q4",29.9)]
+    left, right, top, base = 150, 1050, 26, 282
+    ymax=60
+    def sy(v):
+        return base - v/ymax*(base-top)
+    centers=[250,480,710,940]
+    barw=105
+    parts=[]
+    for t in [0,20,40,60]:
+        y=sy(t)
+        parts.append(f'<line x1="{left}" y1="{y}" x2="{right}" y2="{y}" stroke="#EEECE6" stroke-width="1.5"/>')
+        parts.append(f'<text x="{left-24}" y="{y+7}" text-anchor="end" fill="{MUTED}" font-size="18" font-weight="800">{t}%</text>')
+    for i,(q,v) in enumerate(qs):
+        x=centers[i]; y=sy(v); col=CYAN if i<2 else "#7A7E82"
+        parts.append(f'<rect x="{x-barw/2}" y="{y}" width="{barw}" height="{base-y}" rx="12" fill="{col}"/>')
+        parts.append(f'<text x="{x}" y="{y-18}" text-anchor="middle" fill="{INK}" font-size="30" font-weight="950">{v:.1f}%</text>')
+        parts.append(f'<text x="{x}" y="{base+38}" text-anchor="middle" fill="{INK}" font-size="29" font-weight="950">{q}</text>')
+    parts.append(f'<text x="{(left+right)/2}" y="355" text-anchor="middle" fill="{MUTED}" font-size="18" font-weight="850">share of training bank-quarters with a deposit decline in the following quarter</text>')
+    return f'<svg viewBox="0 0 1200 380" aria-hidden="true">{"".join(parts)}</svg>'
+
+
+def pretrained_svg():
+    zoom = [
+        ("MLP", 6.429, CYAN),
+        ("Ridge", 6.512, BLUE),
+        ("Zero growth", 6.718, "#70808E"),
+        ("Chronos as-is", 7.220, "#627381"),
+        ("Chronos adjusted", 7.420, BLUE),
+    ]
+    zleft, zright = 270, 700
+    fleft, fright = 835, 1185
+    def zx(v): return zleft + v / 10 * (zright - zleft)
+    def fx(v): return fleft + v / 300 * (fright - fleft)
+    parts = []
+    # panel titles
+    parts.append(f'<text x="{zleft}" y="28" fill="{INK}" font-size="22" font-weight="950">ZOOM · 0–10 pp RMSE</text>')
+    parts.append(f'<text x="{fleft}" y="28" fill="{INK}" font-size="22" font-weight="950">FULL SCALE · 0–300 pp RMSE</text>')
+    # zoom grid
+    for t in [0, 2, 4, 6, 8, 10]:
+        x = zx(t)
+        parts.append(f'<line x1="{x:.1f}" y1="45" x2="{x:.1f}" y2="330" stroke="#EEECE6" stroke-width="1.3"/>')
+        parts.append(f'<text x="{x:.1f}" y="355" text-anchor="middle" fill="{MUTED}" font-size="17" font-weight="800">{t}</text>')
+    for i, (lab, val, col) in enumerate(zoom):
+        y = 78 + i * 52
+        x = zx(val)
+        parts.append(f'<text x="{zleft-18}" y="{y+7}" text-anchor="end" fill="{INK if i<3 else MUTED}" font-size="21" font-weight="{950 if i<3 else 850}">{lab}</text>')
+        parts.append(f'<circle cx="{x:.1f}" cy="{y}" r="{12 if i==0 else 9}" fill="{col}" stroke="{CARD_BG}" stroke-width="2"/>')
+        parts.append(f'<text x="{x+17:.1f}" y="{y+8}" fill="{INK if i<3 else MUTED}" font-size="20" font-weight="900">{val:.3f}</text>')
+    # full-scale grid and honest range band
+    for t in [0, 100, 200, 300]:
+        x = fx(t)
+        parts.append(f'<line x1="{x:.1f}" y1="45" x2="{x:.1f}" y2="330" stroke="#EEECE6" stroke-width="1.3"/>')
+        parts.append(f'<text x="{x:.1f}" y="355" text-anchor="middle" fill="{MUTED}" font-size="17" font-weight="800">{t}</text>')
+    # range for all non-TimesFM
+    r1, r2 = fx(6.429), fx(7.420)
+    parts.append(f'<rect x="{r1:.1f}" y="102" width="{max(5, r2-r1):.1f}" height="46" rx="8" fill="#D9E7EA"/>')
+    parts.append(f'<text x="{fx(22):.1f}" y="132" fill="{MUTED}" font-size="19" font-weight="900">all other models: 6.43–7.42</text>')
+    # TimesFM points; labels stay near the far-right dots so they never collide with the zoom panel.
+    for y, lab, val, col in [
+        (224, "used as-is", 294.54, "#627381"),
+        (282, "adjusted", 296.33, BLUE),
+    ]:
+        x = fx(val)
+        parts.append(f'<line x1="{fleft}" y1="{y}" x2="{x:.1f}" y2="{y}" stroke="#D6D4CE" stroke-width="5"/>')
+        parts.append(f'<circle cx="{x:.1f}" cy="{y}" r="10" fill="{col}" stroke="{CARD_BG}" stroke-width="2"/>')
+        parts.append(f'<text x="{x-12:.1f}" y="{y-16}" text-anchor="end" fill="{INK}" font-size="20" font-weight="950">{val:.0f}</text>')
+        parts.append(f'<text x="{x-12:.1f}" y="{y+24}" text-anchor="end" fill="{MUTED}" font-size="17" font-weight="850">TimesFM {lab}</text>')
+    return f'<svg viewBox="0 0 1220 380" aria-hidden="true">{"".join(parts)}</svg>'
+
+
+CSS = f"""
+@page {{ size: 1792px 1024px; margin: 0; }}
+* {{ box-sizing:border-box; }}
+html, body {{ margin:0; padding:0; background:{WARM_BG}; font-family: Inter, Avenir Next, Helvetica Neue, Arial, sans-serif; color:{INK}; }}
+.page {{ width:1792px; height:1024px; position:relative; page-break-after:always; overflow:hidden; background:{WARM_BG}; }}
+.card {{ position:absolute; left:44px; right:44px; top:62px; bottom:44px; background:{CARD_BG}; border:2px solid #D9D9D6; border-radius:36px; box-shadow:0 26px 48px rgba(0,0,0,.09); padding:58px 78px 72px; overflow:hidden; }}
+.tag {{ position:absolute; right:68px; top:46px; color:#C3C1BD; opacity:.55; font-weight:900; font-size:20px; letter-spacing:1px; }}
+h1 {{ margin:0; font-size:57px; line-height:1.02; letter-spacing:-2.4px; font-weight:950; max-width:1450px; position:relative; z-index:1; }}
+h2 {{ margin:0; font-size:26px; line-height:1.08; font-weight:950; }}
+p {{ margin:0; }}
+.cyan {{ color:{CYAN}; }} .teal {{ color:{TEAL}; }} .muted {{ color:{MUTED}; }}
+.note {{ color:{MUTED}; font-size:24px; line-height:1.34; font-weight:650; }}
+.note b {{ color:{INK}; }}
+.note.amber {{ color:{AMBER}; }}
+.footer {{ position:absolute; left:55px; right:55px; bottom:33px; text-align:center; }}
+.footer .rule {{ height:2px; background:#E9E7E1; margin-bottom:28px; }}
+.foottext {{ color:#BFBDB9; letter-spacing:2.1px; font-size:18px; font-weight:900; }}
+
+.slide1 .setup {{ margin-top:18px; font-size:32px; color:{MUTED}; font-weight:700; }}
+.slide1 .center-block {{ text-align:center; margin-top:52px; }}
+.slide1 .mini {{ color:{MUTED}; font-size:31px; font-weight:950; }}
+.slide1 .giant {{ margin-top:4px; font-size:110px; line-height:.95; letter-spacing:-5px; font-weight:1000; }}
+.slide1 .giant span {{ color:{CYAN}; }}
+.slide1 .subtitle {{ margin-top:6px; font-size:39px; font-weight:950; color:{MUTED}; }}
+.rows {{ display:flex; justify-content:center; gap:28px; margin-top:38px; }}
+.rows div {{ border:2px solid {GRID}; border-radius:20px; padding:16px 24px; font-size:26px; color:{MUTED}; font-weight:850; }}
+.rows b {{ color:#0A9CB8; }}
+.receipt {{ text-align:center; margin-top:28px; font-size:26px; }}
+.slide1 .note {{ text-align:center; margin-top:15px; font-size:23px; }}
+
+.slide2 h1 {{ max-width:1450px; }}
+.slide2 .lede {{ max-width:1180px; margin-top:24px; font-size:31px; line-height:1.34; color:{MUTED}; font-weight:700; }}
+.slide2 .chart-wrap {{ margin:24px auto 0; width:1130px; }}
+.slide2 .bottom-callout {{ display:flex; justify-content:center; gap:28px; margin-top:6px; font-size:36px; font-weight:950; }}
+.slide2 .source-note {{ text-align:center; margin-top:10px; font-size:19px; color:{MUTED}; }}
+
+.slide3 .two-panel {{ display:grid; grid-template-columns:1fr 1fr; gap:54px; margin-top:34px; }}
+.slide3 .panel {{ min-width:0; }}
+.slide3 .panelhead {{ display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin-bottom:-2px; }}
+.slide3 .tinylabel {{ color:{MUTED}; font-size:23px; font-weight:950; }}
+.slide3 .panel-note {{ color:{MUTED}; font-size:20px; font-weight:750; margin-top:-8px; text-align:center; }}
+.slide3 .punch {{ margin-top:24px; text-align:center; font-size:38px; font-weight:950; }}
+.slide3 .punch span {{ color:#0A9CB8; }}
+.slide3 .note {{ text-align:center; margin-top:8px; font-size:22px; }}
+
+.slide4 .rank-grid {{ display:grid; grid-template-columns:720px 1fr; gap:80px; margin-top:46px; align-items:center; }}
+.slide4 .rank-chart {{ display:flex; justify-content:center; }}
+.slide4 .rank-question .line1 {{ font-size:63px; line-height:1.02; font-weight:900; letter-spacing:-2px; }}
+.slide4 .rank-question .line2 {{ font-size:80px; line-height:1; font-weight:1000; letter-spacing:-3px; color:{CYAN}; margin-top:6px; }}
+.slide4 .rank-question p {{ margin-top:30px; font-size:32px; color:{INK}; font-weight:900; max-width:640px; }}
+
+.slide5 h1 {{ max-width:1480px; }}
+.slide5 .review-wrap {{ margin:28px auto 0; width:1500px; }}
+.slide5 .definition {{ margin-top:0; text-align:center; color:{MUTED}; font-size:22px; font-weight:700; }}
+.slide5 .definition b {{ color:{INK}; }}
+.slide5 .grid-note {{ text-align:center; margin-top:5px; color:{MUTED}; font-size:18px; }}
+.slide5 .smallpunch {{ margin-top:12px; text-align:center; font-size:31px; font-weight:950; }}
+
+.slide6 .subhead {{ margin-top:14px; font-size:31px; color:{MUTED}; font-weight:750; }}
+.slide6 .lift-chart {{ margin:18px auto 0; width:1250px; }}
+.slide6 .compare {{ display:flex; justify-content:center; gap:80px; margin-top:8px; align-items:flex-end; }}
+.slide6 .compare .block {{ text-align:center; min-width:300px; }}
+.slide6 .compare .lab {{ font-size:19px; color:{MUTED}; font-weight:950; letter-spacing:.3px; }}
+.slide6 .compare .val {{ font-size:42px; font-weight:1000; margin-top:2px; }}
+.slide6 .explain {{ max-width:1220px; margin:12px auto 0; text-align:center; color:{MUTED}; font-size:23px; line-height:1.28; font-weight:700; }}
+.slide6 .note {{ text-align:center; margin-top:10px; font-size:18px; color:{AMBER}; }}
+
+.slide7 .lede {{ margin-top:18px; max-width:1200px; color:{MUTED}; font-size:29px; line-height:1.28; font-weight:750; }}
+.slide7 .season-wrap {{ margin:10px auto 0; width:1200px; }}
+.slide7 .season-bottom {{ display:flex; justify-content:center; gap:54px; margin-top:8px; align-items:flex-end; }}
+.slide7 .scorebox {{ border-top:2px solid {GRID}; padding-top:12px; text-align:center; width:360px; }}
+.slide7 .scorebox .label {{ color:{MUTED}; font-size:18px; font-weight:950; letter-spacing:.5px; }}
+.slide7 .score {{ font-size:44px; font-weight:1000; margin-top:4px; }}
+.slide7 .scorebox .sub {{ color:{MUTED}; font-size:19px; font-weight:950; }}
+.slide7 .season-result {{ text-align:center; margin-top:15px; font-size:31px; font-weight:950; }}
+.slide7 .note {{ position:absolute; left:150px; right:150px; bottom:112px; text-align:center; font-size:18px; color:{AMBER}; }}
+
+.slide8 .lede {{ margin-top:18px; color:{MUTED}; font-size:32px; font-weight:800; }}
+.slide8 .pre-wrap {{ margin:24px auto 0; width:1220px; }}
+.slide8 .nope {{ text-align:center; margin-top:2px; color:#0A9CB8; font-size:66px; font-weight:1000; letter-spacing:-2px; }}
+.slide8 .final-line {{ text-align:center; margin-top:4px; font-size:40px; font-weight:950; letter-spacing:-1px; }}
+.slide8 .note {{ text-align:center; margin-top:18px; font-size:18px; }}
+.slide8 .build {{ margin-top:8px; font-size:18px; color:#B6B3AD; }}
+code {{ font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:{INK}; }}
+"""
+
+BODY = f"""
+<section class="page" id="card-1"><div class="card"><div class="tag">RESULT</div><div class="slide1"><h1>I TRAINED A NEURAL NETWORK ON <span class="cyan">214,425</span> BANK-QUARTER EXAMPLES.</h1><p class="setup">to forecast next-quarter deposit growth.</p><div class="center-block"><div class="mini">AND THE MAE WINNER WAS...</div><div class="giant">PREDICT <span>0%</span>.</div><div class="subtitle">for every bank.</div></div><div class="rows"><div>BANK A <b>→ 0%</b></div><div>BANK B <b>→ 0%</b></div><div>BANK C <b>→ 0%</b></div></div><div class="receipt"><b>Zero growth:</b> 3.601 pp MAE &nbsp;&nbsp; <b>MLP:</b> 3.627 &nbsp;&nbsp; <b>Ridge:</b> 3.641</div><p class="note"><b>MAE</b> = average absolute size of the forecast miss. Lower is better.</p></div><div class="footer"><div class="rule"></div><div class="foottext">01 • THE ZERO-GROWTH PUNCHLINE</div></div></div></section>
+
+<section class="page" id="card-2"><div class="card"><div class="tag">WHY?</div><div class="slide2"><h1>WAIT.&nbsp;&nbsp;HOW CAN <span class="cyan">“0%”</span> WIN ANYTHING?</h1><p class="lede">Because the training target is packed close enough to zero that a constant 0% forecast can rack up a lot of relatively small misses.</p><div class="chart-wrap">{zero_hist_svg()}</div><div class="bottom-callout"><div>So zero growth is lazy.</div><div class="muted">It is <span class="cyan">not</span> random guessing.</div></div><p class="source-note">Central 98% shown here for readability. The tails stayed in the model data.</p></div><div class="footer"><div class="rule"></div><div class="foottext">02 • WHY ZERO WAS HARD TO BEAT</div></div></div></section>
+
+<section class="page" id="card-3"><div class="card"><div class="tag">SCORECARD</div><div class="slide3"><h1>SO... WHICH MODEL IS ACTUALLY “BETTER”?</h1><div class="two-panel"><div class="panel"><div class="panelhead"><h2>AVERAGE SIZE OF THE MISS</h2><div class="tinylabel">MAE ↓</div></div>{dotplot_svg([3.601,3.627,3.641,5.110], ["Zero growth","MLP","Ridge","Previous quarter"], [CYAN,TEAL,BLUE,AMBER], 5.5, [0,1,2,3,4,5])}<div class="panel-note">Axis starts at 0. Zero, MLP, and Ridge are only 0.04 pp apart.</div></div><div class="panel"><div class="panelhead"><h2>BIG MISSES HURT MORE</h2><div class="tinylabel">RMSE ↓</div></div>{dotplot_svg([6.429,6.512,6.718,9.456], ["MLP","Ridge","Zero growth","Previous quarter"], [CYAN,BLUE,"#70808E",AMBER], 10.0, [0,2,4,6,8,10])}<div class="panel-note">Axis starts at 0. The MLP has the lowest RMSE.</div></div></div><div class="punch">SAME MODELS. <span>DIFFERENT WINNER.</span></div><p class="note">Okay. So “better” depends on what kind of mistake I care about.</p></div><div class="footer"><div class="rule"></div><div class="foottext">03 • SAME MODELS, DIFFERENT WINNER</div></div></div></section>
+
+<section class="page" id="card-4"><div class="card"><div class="tag">QUESTION</div><div class="slide4"><h1>BUT NOW THERE’S A DIFFERENT PROBLEM: EVERY BANK GETS <span class="cyan">0%</span>.</h1><div class="rank-grid"><div class="rank-chart">{rank_ties_svg()}</div><div class="rank-question"><div class="line1">I CAN REVIEW ONE.</div><div class="line2">WHICH ONE?</div><p>I can’t rank them. They’re all tied.</p></div></div></div><div class="footer"><div class="rule"></div><div class="foottext">04 • ZERO CANNOT RANK BANKS</div></div></div></section>
+
+<section class="page" id="card-5"><div class="card"><div class="tag">RECEIPT</div><div class="slide5"><h1>SAME <span class="cyan">454</span> REVIEW SLOTS. VERY DIFFERENT HIT RATES.</h1><div class="review-wrap">{review_grids_svg()}</div><p class="definition"><b>Hit</b> = a selected bank that later landed in the bottom 10% of next-quarter deposit growth.</p><p class="grid-note">Each 100-dot grid shows the share, not individual banks.</p><div class="smallpunch">NOW THE FORECAST IS DOING SOMETHING ZERO GROWTH PHYSICALLY CAN’T.</div></div><div class="footer"><div class="rule"></div><div class="foottext">05 • WHO MADE THE REVIEW LIST?</div></div></div></section>
+
+<section class="page" id="card-6"><div class="card"><div class="tag">LOOK TWICE</div><div class="slide6"><h1>SO I TESTED BANK SIZE BY ITSELF.</h1><p class="subhead">How far can one obvious feature get on the same review-list task?</p><div class="lift-chart">{lift_svg()}</div><div class="compare"><div class="block"><div class="lab">SIZE-ONLY RIDGE</div><div class="val"><span class="cyan">1.88×</span> RANDOM</div></div><div class="block"><div class="lab">FIVE-FEATURE RIDGE</div><div class="val">2.19× RANDOM</div></div></div><p class="explain">This does <b>not</b> tell me what share of the full-model result is “caused by size.” It tells me size alone got surprisingly far in these three reused historical quarters.</p><p class="note">Size-only Ridge was a follow-up benchmark developed after 2024 had already been examined.</p></div><div class="footer"><div class="rule"></div><div class="foottext">06 • SIZE GETS SURPRISINGLY FAR</div></div></div></section>
+
+<section class="page" id="card-7"><div class="card"><div class="tag">FOLLOW-UP</div><div class="slide7"><h1>AND THEN THE CALENDAR JOINED THE FIGHT.</h1><p class="lede">In the training years, I grouped predictor quarters and asked: how often did deposits fall next quarter?</p><div class="season-wrap">{seasonality_svg()}</div><div class="season-bottom"><div class="scorebox"><div class="label">SEASONAL MEDIAN</div><div class="score"><span class="cyan">3.500 pp</span></div><div class="sub">MAE</div></div><div class="scorebox"><div class="label">ALWAYS ZERO</div><div class="score">3.601 pp</div><div class="sub">MAE</div></div></div><div class="season-result">AND... THE SEASONAL MEDIAN CAME OUT LOWER.</div><p class="note">Caveat: I came up with this after already examining 2024. Useful follow-up, not fresh confirmation.</p></div><div class="footer"><div class="rule"></div><div class="foottext">07 • THE CALENDAR FIGHTS BACK</div></div></div></section>
+
+<section class="page" id="card-8"><div class="card"><div class="tag">FINAL ROUND</div><div class="slide8"><h1>FINE. BRING IN THE PRETRAINED MODELS.</h1><p class="lede">Surely one of THESE beats “predict zero,” right?</p><div class="pre-wrap">{pretrained_svg()}</div><div class="nope">...NOPE.</div><div class="final-line">COMPLEXITY DOESN’T GET CREDIT FOR SHOWING UP.</div><p class="note">Zero-shot = used as-is. Adjusted = only the forecasting head was adapted on earlier bank data.</p><p class="note build">Built from my <code>.ipynb</code> with <b>wm-notecards</b>.</p></div><div class="footer"><div class="rule"></div><div class="foottext">08 • COMPLEXITY HAS TO EARN IT</div></div></div></section>
+"""
+
+HTML = f"""<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=1792, initial-scale=1"/><title>Simple Models Fight Back</title><style>{CSS}</style></head><body>{BODY}</body></html>"""
+
+
+async def render_pages():
+    HTML_FILE.write_text(HTML, encoding="utf-8")
+    if RENDER_DIR.exists():
+        shutil.rmtree(RENDER_DIR)
+    RENDER_DIR.mkdir(exist_ok=True)
+
+    async with async_playwright() as p:
+        chromium_path = shutil.which("chromium") or shutil.which("google-chrome") or shutil.which("chromium-browser")
+        launch_kwargs = {"args": ["--no-sandbox"]}
+        if chromium_path:
+            launch_kwargs["executable_path"] = chromium_path
+        browser = await p.chromium.launch(**launch_kwargs)
+        page = await browser.new_page(viewport={"width": 1792, "height": 1024}, device_scale_factor=1.25)
+        await page.set_content(HTML_FILE.read_text(encoding="utf-8"), wait_until="networkidle")
+        cards = await page.locator(".page").all()
+        for i, card in enumerate(cards, start=1):
+            await card.screenshot(path=str(RENDER_DIR / f"page-{i}.png"))
+        await browser.close()
+
+
+def build_pptx():
+    prs = Presentation()
+    prs.slide_width = Inches(14)
+    prs.slide_height = Inches(8)
+    blank_layout = prs.slide_layouts[6]
+    for img in sorted(RENDER_DIR.glob("page-*.png")):
+        slide = prs.slides.add_slide(blank_layout)
+        slide.shapes.add_picture(str(img), 0, 0, width=prs.slide_width, height=prs.slide_height)
+    prs.save(PPTX_FILE)
+
+
+def build_pdf():
+    pages = []
+    for img in sorted(RENDER_DIR.glob("page-*.png")):
+        pages.append(Image.open(img).convert("RGB"))
+    if not pages:
+        raise RuntimeError("No rendered PNG pages found.")
+    pages[0].save(PDF_FILE, save_all=True, append_images=pages[1:], resolution=160.0)
+
+
+def main():
+    asyncio.run(render_pages())
+    build_pptx()
+    build_pdf()
+    print(f"Wrote {HTML_FILE}")
+    print(f"Wrote {PPTX_FILE}")
+    print(f"Wrote {PDF_FILE}")
+
+
+if __name__ == "__main__":
+    main()

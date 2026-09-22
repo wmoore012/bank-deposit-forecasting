@@ -1,15 +1,11 @@
 {
+  "pages": 6,
+  "historical_evaluation": "2024 Q1\u2013Q3 predictors; reused",
   "source_sha256": {
     "growth_outputs/masterclass/extended_scores.csv": "428215eda7fa0743945e5fc368c47a2ffbee7ba6ad0a97ce6a66174dc38d2974",
     "growth_outputs/masterclass/mean_ranking.csv": "a93b450264797bd6dd8945124bde03fff06306c1d983c87a26e6177a0e874368",
     "growth_outputs/masterclass/seasonal_rules.csv": "0b293749bc182bc44cd256b95c5849fe5e2b3efc7594d403ca6761ade47e6361",
     "growth_outputs/masterclass/ranking.csv": "b1a5c2328bfc49676b521e6bb92c0d95605e26c1d21b5b858d74de622b236105",
-    "growth_outputs/chronos_zero_shot_predictions.json": "fcbb29a1b0c83ef454a07e14c499cd3eb35febf73b259b04f83842a7cbbe28ea",
-    "growth_outputs/chronos_finetuned_predictions.json": "2c248905141b7a631eb992ea621137897382ef5217f5901165c7b088334c1ef8",
-    "growth_outputs/timesfm_zero_shot_predictions.json": "d4c166ac81fa517f7773f9a6f0af213057fd6789b562c18e89fd035d559319cf",
-    "growth_outputs/timesfm_finetuned_predictions.json": "3431be9d570ce17100915ba115a4daa7223fae4294b0ab560da7a3f471735db2",
     "communications/simple-models-fight-back/training_histogram.json": "9d8a6cb88a97dc169cfbdff64f611564f66dfb4e551a574e7b941e8c7963f0e8"
-  },
-  "pages": 11,
-  "historical_evaluation": "2024 Q1\u2013Q3 predictors; reused"
+  }
 }

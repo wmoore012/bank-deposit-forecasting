@@ -1,0 +1,13 @@
+{
+  "issued_on": "2026-09-22",
+  "predictor_date": "2026-06-30",
+  "target_date": "2026-09-30",
+  "seasonal_forecast_growth_percent": 0.5503998420377076,
+  "zero_forecast_growth_percent": 0,
+  "rule": "Existing Q2 training-period median, no refitting",
+  "source_sha256": "0b293749bc182bc44cd256b95c5849fe5e2b3efc7594d403ca6761ade47e6361",
+  "evaluation": "Mean absolute percentage-point error on identical matched banks with positive finite domestic deposits at both dates. Report missing rows and merger cases separately; retain valid merger rows in main score.",
+  "status": "Rule-level forecast saved; live bank cohort not yet downloaded. No future outcomes observed.",
+  "availability_check": "FDIC BankFind lists 2026-06-30. 2026-09-30 is after issuance date.",
+  "source_url": "https://banks.data.fdic.gov/bankfind-suite/financialreporting"
+}

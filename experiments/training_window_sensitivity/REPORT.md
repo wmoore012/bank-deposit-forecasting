@@ -1,4 +1,8 @@
-# Shorter training windows did not improve historical MAE
+# But wait. What if we train on only the recent years?
+
+In volatile economic times, older examples might be less useful. So I tried starting the training data in 2020, then 2021.
+
+And... the errors got bigger.
 
 The original 2013–2022 training window had lower 2024 mean absolute error than windows starting in 2020 or 2021. This held for Ridge and for each of three neural-network seeds. This is an exploratory result on already-inspected 2024 outcomes, not evidence about a unique current economic regime.
 

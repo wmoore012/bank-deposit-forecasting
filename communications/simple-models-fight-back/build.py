@@ -27,83 +27,89 @@ def page(title,note):
     f=plt.figure(figsize=(14,8),facecolor='white')
     pages.append(f)
     text(f,.055,.95,'SIMPLE MODELS FIGHT BACK',11,TEAL,'bold')
-    text(f,.055,.885,title,40 if len(pages)==1 else 30,INK,'bold')
+    text(f,.055,.885,title,34 if len(pages)==1 else 30,INK,'bold')
     text(f,.055,.105,note,11)
     text(f,.945,.035,f'{len(pages):02} / 06  •  Reused 2024 evaluation',9,GRAY,ha='right')
     return f
 def score(model,metric): return scores.loc[model,metric]
 
-f=page('NEURAL NETS LEARN CURVES.\nMINE LOST TO A FLAT LINE.',
-       'Average absolute forecast miss (MAE), percentage points. Lower is better. Original four-model comparison.\n214,425 training examples; 13,532 evaluation examples. The small gap does not establish a future winner.')
-text(f,.055,.705,'I used quarterly bank reports to predict how deposits would change next quarter.',16)
-a=f.add_axes([.08,.48,.35,.14]);x=np.linspace(0,1,100);a.plot(x,.3*np.sin(x*13)+.2*x,color=GRAY,lw=3);a.axis('off')
-text(f,.255,.455,'NEURAL NET',14,GRAY,'bold',ha='center')
-a=f.add_axes([.57,.48,.35,.14]);a.plot([0,1],[0,0],color=CYAN,lw=5);a.set_ylim(-1,1);a.axis('off')
-text(f,.745,.455,'0% FOR EVERY BANK',22,TEAL,'bold',ha='center')
-text(f,.255,.37,f"{score('MLP','MAE (pp)'):.3f}",44,INK,'bold',ha='center')
-text(f,.745,.37,f"{score('Zero growth','MAE (pp)'):.3f}",54,TEAL,'bold',ha='center')
-text(f,.5,.185,'Lines illustrate the two ideas; they are not plotted predictions.',11,GRAY,ha='center')
+predictions = pd.read_csv(OUT / 'predictions.csv')
+actual = 100 * predictions['growth'].to_numpy()
+mlp = 100 * predictions['MLP'].to_numpy()
+for model in ['Zero growth','MLP']:
+    error=actual-100*predictions[model].to_numpy()
+    assert np.isclose(np.mean(abs(error)),score(model,'MAE (pp)'),atol=1e-6)
+    assert np.isclose(np.sqrt(np.mean(error**2)),score(model,'RMSE (pp)'),atol=1e-6)
+# One shared display window and the identical population in both panels.
+lo,hi=np.quantile(actual,[.01,.99]);visible=(actual>=lo)&(actual<=hi)&(mlp>=lo)&(mlp<=hi)
+shown=int(visible.sum()); omitted=len(actual)-shown
+f=page('NEURAL NETS LEARN COMPLEX FUNCTIONS.\nMINE LOST MAE TO A CONSTANT.',
+       f'Actual predictions. Both axes: {lo:.1f}% to {hi:.1f}% (actual-growth central 98%); {omitted:,} rows outside either axis omitted in both panels.\nAll {len(actual):,} rows scored. 214,425 training examples. Original four-model comparison; historical results.')
+text(f,.055,.695,'Predicting next-quarter deposit growth from quarterly bank reports.',16)
+for xpos,name,values in [(.12,'ZERO MODEL',np.zeros(len(actual))),(.58,'NEURAL NET',mlp)]:
+    ax=f.add_axes([xpos,.245,.32,.34]);ax.scatter(actual[visible],values[visible],s=5,alpha=.18,color=TEAL,rasterized=True)
+    ax.plot([lo,hi],[lo,hi],ls='--',color=GRAY,lw=1.2,label='Perfect prediction: y = x')
+    ax.set(xlim=(lo,hi),ylim=(lo,hi),xlabel='Actual growth (%)',ylabel='Predicted growth (%)')
+    ax.set_aspect('equal',adjustable='box');ax.spines[['top','right']].set_visible(False);ax.tick_params(labelsize=10)
+    ax.set_title(name,fontsize=15,fontweight='bold');ax.legend(fontsize=8,loc='upper left')
+    text(f,xpos+.16,.19,f"{'Zero' if name=='ZERO MODEL' else 'MLP'} MAE {score('Zero growth' if name=='ZERO MODEL' else 'MLP','MAE (pp)'):.3f} pp",18,TEAL,'bold',ha='center')
 
-f=page('WHY WAS A FLAT LINE SO HARD TO BEAT?',
-       'Central 98% of training log-growth targets. Full tails stayed in the experiment.\nTraining concentration motivates the baseline; the later evaluation establishes its score.')
-text(f,.055,.765,'A LOT OF DEPOSIT CHANGES SIT NEAR ZERO.',23,INK,'bold')
-a=f.add_axes([.12,.30,.78,.37]);edges=np.array(hist['edges']);a.bar(edges[:-1],hist['counts'],width=np.diff(edges),align='edge',color='#C8CED1',edgecolor='white');a.axvline(0,color=CYAN,lw=4)
-a.annotate('0% growth',xy=(0,max(hist['counts'])),xytext=(1.3,max(hist['counts'])*1.10),color=TEAL,fontsize=16,fontweight='bold');a.set_ylim(0,max(hist['counts'])*1.25)
-a.spines[['top','right']].set_visible(False);a.set_xlabel('100 × log(next deposits / current deposits)',fontsize=12);a.set_ylabel('Training examples',fontsize=12)
-text(f,.5,.205,'BORING CAN WORK.',27,INK,'bold',ha='center')
+f=page('WHY WAS ZERO SO HARD TO BEAT?',
+       'Central 98% of training log-growth targets. Full tails stayed in the experiment.\nThis concentration motivates the benchmark; it does not by itself explain the later score.')
+ax=f.add_axes([.12,.25,.78,.43]);edges=np.array(hist['edges'])
+ax.bar(edges[:-1],hist['counts'],width=np.diff(edges),align='edge',color='#C8CED1',edgecolor='white');ax.axvline(0,color=CYAN,lw=4)
+ax.annotate('A lot of the target mass lives near here.',xy=(0,34000),xytext=(2,40000),arrowprops={'arrowstyle':'->','color':TEAL},color=TEAL,fontsize=14,fontweight='bold')
+ax.set_ylim(0,47000);ax.set_xlabel('100 × log(next deposits / current deposits)');ax.set_ylabel('Training examples');ax.spines[['top','right']].set_visible(False)
 
-f=page('ZERO WON THE AVERAGE MISS.\nTHE NET WON WHEN BIG MISSES HURT MORE.',
-       'MAE on the left; RMSE on the right. Both measure ordinary-growth forecast errors in percentage points.\nSame evaluation rows, original four models. Lower RMSE does not mean every large miss improved.')
-text(f,.08,.66,'AVERAGE MISS ↓',18,TEAL,'bold');text(f,.57,.66,'BIG MISSES HURT MORE ↓',18,TEAL,'bold')
-text(f,.08,.56,f"0%   {score('Zero growth','MAE (pp)'):.3f}",40,TEAL,'bold')
-text(f,.57,.56,f"Neural net   {score('MLP','RMSE (pp)'):.3f}",32,TEAL,'bold')
-text(f,.08,.43,f"Neural net   {score('MLP','MAE (pp)'):.3f}",23)
-text(f,.57,.43,f"0%   {score('Zero growth','RMSE (pp)'):.3f}",23)
-text(f,.5,.235,'“WINNER” DEPENDS ON WHAT HURTS.',29,INK,'bold',ha='center')
+f=page('ZERO WON MAE.\nTHE NET WON RMSE.',
+       'Original four models; same evaluation rows. Errors are in ordinary-growth percentage points.\nLower is better. Small historical differences do not establish future superiority.')
+for j,metric in enumerate(['MAE (pp)','RMSE (pp)']):
+    d=scores.loc[['Zero growth','MLP','Ridge','Persistence']].sort_values(metric)
+    ax=f.add_axes([.18+j*.46,.31,.29,.34]);ax.scatter(d[metric],range(4),color=[TEAL,GRAY,GRAY,GRAY],s=80)
+    ax.set_yticks(range(4),['Zero' if x=='Zero growth' else x for x in d.index]);ax.invert_yaxis();ax.set_xlim(0,6 if j==0 else 11)
+    ax.set_title(metric.replace(' (pp)','')+' ↓',fontsize=19,fontweight='bold');ax.set_xlabel('Percentage points');ax.spines[['top','right']].set_visible(False);ax.grid(axis='x',alpha=.12)
+    for i,v in enumerate(d[metric]):ax.text(v+.12,i,f'{v:.3f}',va='center',fontsize=12,fontweight='bold' if i==0 else 'normal')
+text(f,.5,.205,'Different scoring metric. Different winner.',25,INK,'bold',ha='center')
 
-f=page('THE FLAT LINE COULDN’T TELL ME WHERE TO LOOK.',
-       'March → June 2024. Hypothetical 10% review capacity. Found = selected bank later in the lowest-growth 10%.\nThat group can include positive growth. A human still investigates the cause; no savings were measured.')
-text(f,.07,.75,'BANK A   0%     BANK B   0%     BANK C   0%     BANK D   0%',19,GRAY)
-text(f,.07,.665,'EVERYBODY IS TIED.',24,INK,'bold')
-text(f,.07,.57,'4,536 BANKS.  454 REVIEW SLOTS.',27,INK,'bold')
+f=page('ZERO CAN FORECAST.\nIT CAN’T RANK.',
+       'March → June 2024. 4,536 eligible banks; 454 hypothetical review slots.\nFound = later in that quarter’s lowest-growth 10%, which can include positive growth.')
+text(f,.055,.70,'Every bank → 0% predicted growth → complete tie',18)
 n=int(march.loc['Ridge','Banks']);k=int(march.loc['Ridge','Selected'])
-for xpos,label,val,suffix in [(.20,'RANDOM SELECTION',f'{k*k/n:.1f}','expected'),(.51,'RIDGE',str(int(march.loc['Ridge','Hits'])),'found'),(.81,'NEURAL NET',str(int(march.loc['MLP','Hits'])),'found')]:
-    text(f,xpos,.465,label,15,TEAL,'bold',ha='center');text(f,xpos,.395,val,45,INK,'bold',ha='center');text(f,xpos,.29,suffix,16,GRAY,ha='center')
-text(f,.5,.20,'NOW I HAVE A LIST.',29,INK,'bold',ha='center')
+prevalence=float(march.loc['Ridge','Random expectation'])
+values=[100*prevalence,100*march.loc['Ridge','Precision'],100*march.loc['MLP','Precision']]
+ax=f.add_axes([.23,.265,.60,.34]);ax.barh(range(3),values,color=[GRAY,CYAN,TEAL],height=.48)
+ax.set_yticks(range(3),['Random selection','Ridge','MLP']);ax.invert_yaxis();ax.set_xlim(0,35);ax.set_xticks([0,10,20,30],['0%','10%','20%','30%']);ax.set_xlabel('Precision @ 10% review capacity');ax.spines[['top','right']].set_visible(False)
+for i,(v,count) in enumerate(zip(values,[f'{k*prevalence:.1f} expected','112 found','109 found'])):ax.text(v+.7,i,f'{v:.1f}%  |  {count}',va='center',size=13,weight='bold')
 
 f=page('I THREW OUT 4 INPUTS.\nKEPT ONLY DEPOSIT SIZE.',
-       'Lowest-growth banks found per 100 selected; equal-quarter averages over three reused 2024 quarters.\nSize-only Ridge was a later challenger. This is not a causal decomposition; the gap needs a fresh test.')
-text(f,.055,.705,'Deposit size = customer deposit dollars. Both comparisons use Ridge.',16)
+       'Equal-quarter average across three reused 2024 quarters. Size-only challenger added after examining 2024.\nThis comparison does not decompose the five-feature model’s causes.')
 a_val=100*means.loc['Size-only Ridge','Precision'];b_val=100*means.loc['Ridge','Precision']
-for xpos,label,value in [(.24,'1 INPUT',a_val),(.76,'5 INPUTS',b_val)]:
-    text(f,xpos,.59,label,20,TEAL,'bold',ha='center');text(f,xpos,.505,f'{value:.1f}',64,INK,'bold',ha='center')
-text(f,.5,.455,f'+{b_val-a_val:.1f}',28,TEAL,'bold',ha='center');text(f,.5,.365,'per 100 selected',13,GRAY,ha='center')
-text(f,.5,.295,'Random selection ≈ 10',17,GRAY,ha='center')
-text(f,.5,.205,'THAT’S IT?',31,INK,'bold',ha='center')
+ax=f.add_axes([.12,.34,.77,.26]);ax.plot([a_val,b_val],[0,0],color=GRAY,lw=3);ax.scatter([a_val,b_val],[0,0],color=[GRAY,CYAN],s=160,zorder=3)
+ax.axvline(10,ls='--',color=GRAY);ax.text(10,.53,'Chance ≈ 10%',ha='center',size=12)
+ax.text(a_val-.35,.2,f'SIZE-ONLY RIDGE\n{a_val:.1f}%',ha='right',size=16,weight='bold');ax.text(b_val+.35,.2,f'5-FEATURE RIDGE\n{b_val:.1f}%',ha='left',size=16,weight='bold')
+ax.set(xlim=(0,30),ylim=(-.4,.8),yticks=[],xlabel='Precision @ 10% review capacity');ax.set_xticks([0,10,20,30],['0%','10%','20%','30%']);ax.spines[['top','right','left']].set_visible(False)
+text(f,.5,.225,f'Same model family. Four features removed. {b_val-a_val:.1f} percentage-point difference.',19,INK,'bold',ha='center')
 
-f=page('A CALENDAR RULE BEAT THE FLAT LINE.',
-       'Seasonal median was developed after examining 2024. It predicts each calendar quarter’s training median.\nHistorical MAE in percentage points; lower is better. Analysis notebook built with wm-notecards.')
-text(f,.055,.765,'How often did deposits fall next quarter? Training years:',16)
-a=f.add_axes([.12,.525,.77,.18])
-values=season['Decline share'].to_numpy()*100
-a.bar(season.Quarter,values,color=[CYAN,CYAN,'#8F999E','#8F999E'],width=.58)
-a.set_ylim(0,60);a.set_yticks([0,20,40,60],['0%','20%','40%','60%'])
-a.set_xticks([1,2,3,4],['Q1','Q2','Q3','Q4']);a.spines[['top','right']].set_visible(False)
-a.tick_params(labelsize=11);a.set_axisbelow(True);a.grid(axis='y',alpha=.12)
-for q,v in zip(season.Quarter,values):a.text(q,v+2,f'{v:.1f}%',ha='center',size=13,weight='bold')
-text(f,.15,.475,'SEASONAL RULE',13,TEAL,'bold');text(f,.60,.475,'FLAT LINE',13,GRAY,'bold')
-text(f,.15,.435,f"{score('Seasonal median','MAE (pp)'):.3f}",32,TEAL,'bold');text(f,.60,.435,f"{score('Zero growth','MAE (pp)'):.3f}",32,INK,'bold')
-text(f,.5,.36,'SERIOUSLY?',19,INK,'bold',ha='center')
-text(f,.5,.32,'THE NEXT RESULT I CARE ABOUT\nIS THE ONE I DON’T KNOW YET.',26,INK,'bold',ha='center')
-text(f,.5,.19,'Freeze these rules. Test the next unseen quarter.',16,ha='center')
+f=page('A CALENDAR RULE BEAT ZERO\nON HISTORICAL MAE.',
+       'Seasonal median: predict each calendar quarter’s training-period median growth. Developed after examining 2024.\nHistorical comparison, not fresh confirmation. Analysis notebook built with wm-notecards.')
+text(f,.07,.69,'How often did deposits fall next quarter?',16)
+ax=f.add_axes([.10,.32,.43,.30]);values=season['Decline share'].to_numpy()*100
+ax.bar(season.Quarter,values,color=[CYAN,CYAN,GRAY,GRAY],width=.6);ax.set_ylim(0,60);ax.set_yticks([0,20,40,60],['0%','20%','40%','60%']);ax.set_xticks([1,2,3,4],['Q1','Q2','Q3','Q4']);ax.set_xlabel('Predictor quarter · training years');ax.spines[['top','right']].set_visible(False)
+for q,v in zip(season.Quarter,values):ax.text(q,v+2,f'{v:.1f}%',ha='center',size=13,weight='bold')
+ax=f.add_axes([.70,.36,.21,.22]);v=[score('Seasonal median','MAE (pp)'),score('Zero growth','MAE (pp)')]
+ax.scatter(v,[0,1],s=90,color=[CYAN,GRAY]);ax.set_yticks([0,1],['Seasonal median','Zero']);ax.set_ylim(1.6,-.6);ax.set_xlim(0,4.3);ax.set_title('MAE ↓',size=18,weight='bold');ax.set_xlabel('Percentage points');ax.spines[['top','right']].set_visible(False)
+for i,value in enumerate(v):ax.text(value+.1,i,f'{value:.3f}',va='center',size=13,weight='bold')
+text(f,.5,.205,'OKAY. THAT GETS A FRESH TEST.',27,INK,'bold',ha='center')
 
 assert len(pages)==6
 assert (n,k)==(4536,454)
+assert round(k*march.loc['Ridge','Precision']) == 112
+assert round(k*march.loc['MLP','Precision']) == 109
 assert sum(hist['counts'])==210135
 assert round(b_val-a_val,1)==3.1
 with PdfPages(DEST/'simple_models_fight_back_reviewed.pdf') as pdf:
     for i,f in enumerate(pages,1):
         pdf.savefig(f);f.savefig(DEST/f'{i:02}.png',dpi=150);plt.close(f)
-sources=[OUT/name for name in ['extended_scores.csv','mean_ranking.csv','seasonal_rules.csv','ranking.csv']]+[DEST/'training_histogram.json']
+sources=[OUT/name for name in ['extended_scores.csv','mean_ranking.csv','seasonal_rules.csv','ranking.csv','predictions.csv']]+[DEST/'training_histogram.json']
 (DEST/'manifest.json').write_text(json.dumps({'pages':6,'historical_evaluation':'2024 Q1–Q3 predictors; reused','source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}},indent=2))
 print(DEST/'simple_models_fight_back_reviewed.pdf')

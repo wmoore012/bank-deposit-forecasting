@@ -13,8 +13,16 @@ cyan, teal and blue layout. Its layout differs from the supplied deck.
 The posting sequence follows the flat-line hook, training histogram, MAE/RMSE
 reversal, fixed-capacity review list, one-input Ridge challenger, and seasonal-rule
 ending. Foundation-model comparisons and the monitoring epilogue are omitted from
-this shorter carousel; their source results remain in the repository. Decorative
-curves are explicitly illustrative, and numerical comparisons use printed values.
+this shorter carousel; their source results remain in the repository. Every slide
+uses an analytical object: saved model predictions on identical axes, an actual
+training histogram, score dotplots, zero-baseline precision bars, a Ridge challenger
+dumbbell, or seasonal frequencies with a historical score comparison.
+
+The prediction panels use `predictions.csv`, whose outcomes and predictions are
+already ordinary growth fractions. Scores are recomputed after multiplying by 100
+and checked against the saved MAE and RMSE. Both panels show the same rows within
+a shared square window defined by the actual-growth 1st and 99th percentiles;
+rows outside either coordinate are omitted from both displays, never from scoring.
 
 ## Accuracy review history
 
@@ -24,7 +32,7 @@ curves are explicitly illustrative, and numerical comparisons use printed values
   Use the notebook's already-trimmed central-98% trace without trimming it again.
   This shows training concentration; it does not establish why a forecast wins later.
 - Include March-to-June 2024, 4,536 eligible banks, and hypothetical 454 review slots
-  in the hit comparison. The current version uses direct numbers rather than grids. Random expected hits are
+  in the hit comparison. The current version uses zero-baseline precision bars. Random expected hits are
   454 × 454 / 4,536 = 45.440035.
 - Lift uses equal-quarter means of precision divided by actual quarter prevalence:
   persistence 1.26005×, size-only 1.87931×, Ridge 2.18758×, MLP 2.17384×.

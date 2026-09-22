@@ -1,0 +1,42 @@
+{
+  "status": "Exploratory: 2024 already inspected; no fresh holdout",
+  "training_starts": [
+    2013,
+    2020,
+    2021
+  ],
+  "training_end": "2022-09-30",
+  "validation_predictors": "2023 Q1-Q3",
+  "test_predictors": "2024 Q1-Q3",
+  "seeds": [
+    42,
+    7,
+    99
+  ],
+  "rationale": "2020 and 2021 test more recent training, with unchanged 2023 selection and 2024 scoring. No 2023-2026 observations moved into training. One bank does not establish an economy-wide regime.",
+  "source_sha256": "ed8b1a663c1a9c417a71069f7c3a947ca41e670f2123d0c54ef868443ce3b0d8",
+  "features": [
+    "log_deposits",
+    "cash_ratio",
+    "loan_ratio",
+    "equity_ratio",
+    "prior_growth"
+  ],
+  "architecture": [
+    5,
+    32,
+    16,
+    1
+  ],
+  "epochs_max": 200,
+  "patience": 10,
+  "batch_size": 512,
+  "learning_rate": 0.001,
+  "ridge_alphas": [
+    0.01,
+    0.1,
+    1,
+    10,
+    100
+  ]
+}

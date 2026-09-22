@@ -43,7 +43,7 @@ for model in ['Zero growth','MLP']:
 # One shared display window and the identical population in both panels.
 lo,hi=np.quantile(actual,[.01,.99]);visible=(actual>=lo)&(actual<=hi)&(mlp>=lo)&(mlp<=hi)
 shown=int(visible.sum()); omitted=len(actual)-shown
-f=page('NEURAL NETS LEARN COMPLEX FUNCTIONS.\nMINE LOST MAE TO A CONSTANT.',
+f=page('NEURAL NETS CAN FIT COMPLEX CURVES.\nMINE LOST TO A FLAT LINE.',
        f'Actual predictions. Both axes: {lo:.1f}% to {hi:.1f}% (actual-growth central 98%); {omitted:,} rows outside either axis omitted in both panels.\nAll {len(actual):,} rows scored. 214,425 training examples. Original four-model comparison; historical results.')
 text(f,.055,.695,'Predicting next-quarter deposit growth from quarterly bank reports.',16)
 for xpos,name,values in [(.12,'ZERO MODEL',np.zeros(len(actual))),(.58,'NEURAL NET',mlp)]:

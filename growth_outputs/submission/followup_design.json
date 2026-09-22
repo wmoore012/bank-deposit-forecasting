@@ -1,0 +1,18 @@
+{
+  "status": "Follow-up analyses developed after examining 2024",
+  "training_rows": 214425,
+  "validation_rows": 13834,
+  "evaluation_rows": 13532,
+  "training_last_outcome": "2022-12-31 00:00:00",
+  "validation_last_outcome": "2023-12-31 00:00:00",
+  "training_median_log_growth": 0.009986852668374322,
+  "seasonal_medians": {
+    "1": 0.0034413369924629735,
+    "2": 0.005488906772018854,
+    "3": 0.013861196354736023,
+    "4": 0.01715784747732654
+  },
+  "size_ridge_alpha": 100.0,
+  "bootstrap": "1000 paired bank clusters; fixed fitted models and original selection lists",
+  "average_ranking": "Arithmetic mean of three quarterly values; exact k/n random reference"
+}

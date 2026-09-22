@@ -80,3 +80,26 @@ The subsequent summary edits changed Markdown only and preserved those outputs. 
 regression tests pass, including the source-population and lead-first checks. Desktop HTML
 inspection confirmed the ordered rationale, wrapped dictionary, and missingness card.
 Previously recorded narrow-screen verification limits still apply.
+
+## September 21 teaching and chart revision
+
+Both editions were regenerated from shared teaching sources with full EDA retained.
+The 38/3/3 split chart previously selected bank-count columns by position; named
+calendar columns now fix that presentation error. The underlying split and model
+predictions were unaffected. New regression checks cover calendar coordinates,
+finding-led chart titles, capacity denominators, illustrative arithmetic, real-bank
+input mapping, source provenance, follow-up baselines, and paired uncertainty.
+
+The local design uses white WM cards and cyan accents, retaining the approved fonts.
+Question, big-number, and pictogram highlights supplement the ordinary charts and
+pandas outputs. The pictogram displays an approximate proportion and explicitly does
+not assign an individual bank to each grid dot.
+
+Final verification: both fresh-kernel executions completed; 28 unittest checks passed.
+Desktop browser checks confirmed the standard WM chips, white cards, new question/
+number/pictogram highlights, readable error lesson, and corrected calendar labels.
+At 389 CSS pixels, measured card widths were 343 pixels and the document width stayed
+within the viewport. The browser screenshot compositor returned blank/distorted images
+under viewport overrides, so narrow-screen visual inspection remains limited to DOM
+geometry; desktop screenshots were available normally. All twelve PNGs and twelve PDF
+pages were rendered and reviewed as contact sheets. The PDF has twelve portrait pages.

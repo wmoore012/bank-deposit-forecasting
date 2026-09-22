@@ -91,14 +91,14 @@ class ExperimentTests(unittest.TestCase):
             self.assertAlmostEqual(annotation['y'], np.log10(y))
         fig=json.loads((out/'actual_predicted.json').read_text())
         self.assertEqual(fig['layout']['hoverlabel']['bgcolor'],'white')
-        self.assertEqual(fig['layout']['hoverlabel']['font']['color'],'#182E3A')
+        self.assertEqual(fig['layout']['hoverlabel']['font']['color'],'#172F3E')
         self.assertEqual(fig['layout']['yaxis']['scaleanchor'],'x')
         self.assertEqual(fig['layout']['xaxis']['range'],fig['layout']['yaxis']['range'])
 
         comparison=json.loads((out/'comparison.json').read_text())
         self.assertEqual(len(comparison['data']),8)
         self.assertTrue(all(trace['type']=='scatter' for trace in comparison['data']))
-        winners=[trace for trace in comparison['data'] if trace.get('marker',{}).get('color')=='#007F89']
+        winners=[trace for trace in comparison['data'] if trace.get('marker',{}).get('color')=='#0B6F75']
         self.assertEqual(len(winners),2)
         self.assertEqual({trace['y'][0] for trace in winners},{'Zero growth','MLP'})
         scores=pd.read_csv(ROOT/'growth_outputs/masterclass/historical_scores.csv').set_index('Model')
@@ -109,7 +109,7 @@ class ExperimentTests(unittest.TestCase):
 
         nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
         scorecard_cell=next(cell for cell in nb.cells if cell.cell_type=='code'
-                            and "'comparison'," in cell.source)
+                            and ("'comparison'," in cell.source or '"comparison",' in cell.source))
         rendered='\n'.join(output.get('data',{}).get('text/html','')
                            for output in scorecard_cell.outputs)
         self.assertNotIn('Not tested',rendered)
@@ -169,7 +169,7 @@ class ExperimentTests(unittest.TestCase):
         quantiles=pd.read_csv(out/'large_error_quantiles.csv').set_index('Model')
         self.assertLess(quantiles.loc['MLP'].iloc[0],quantiles.loc['Zero growth'].iloc[0])
         summary=json.loads((out/'run_summary.json').read_text())
-        self.assertIn('did not improve typical forecast error',summary['conclusion'])
+        self.assertIn('had higher mean absolute error',summary['conclusion'])
         self.assertIn('lowest RMSE',summary['conclusion'])
 
         nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
@@ -201,16 +201,16 @@ class ExperimentTests(unittest.TestCase):
 
         chart=json.loads((out/'charts/error_tradeoff.json').read_text())
         self.assertEqual(chart['data'][0]['marker']['color'],
-                         ['#AF7721','#007F89','#007F89'])
+                         ['#A86223','#0B6F75','#0B6F75'])
         self.assertTrue(any(shape['x0']==0 and shape['x1']==0
                             for shape in chart['layout']['shapes']))
 
         nb=nbformat.read(ROOT/'FDIC_Deep_Learning_Masterclass.ipynb',as_version=4)
         source='\n'.join(cell.source for cell in nb.cells)
         self.assertIn('timesfm_comparison',source)
-        self.assertIn('What does the 4.3% improvement buy us?',source)
+        self.assertIn('The RMSE improvement changes large-error scoring',source)
         self.assertIn('Would anomaly detection give us a better review list?',source)
-        self.assertIn('Future-quarter balances cannot enter a score',source)
+        self.assertIn('A future outcome must never determine who gets scored today',source)
         self.assertNotIn('TimesFM,', (out/'historical_scores.csv').read_text())
 
     def test_timesfm_uses_full_holdout_and_separate_extension(self):

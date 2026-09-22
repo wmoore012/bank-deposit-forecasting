@@ -4,7 +4,7 @@ A reproducible research project testing whether machine learning improves next-q
 
 ## The result in 30 seconds
 
-- **The simple baseline matters:** predicting zero growth has the lowest mean absolute error, **3.601 percentage points**.
+- **The simple baseline matters:** among the original four forecasts, predicting zero growth has the lowest mean absolute error, **3.601 percentage points**.
 - **The neural network helps on a different metric:** its **6.429 pp RMSE** is 4.3% below zero growth, but does not establish a dependable overall advantage.
 - **Review capacity changes the question:** selecting 10% of banks using Ridge or MLP predictions identifies realized bottom-decile banks with **16.7%–24.7% precision** across three quarters, versus roughly 10% from random selection.
 - **More complex is not automatically better:** zero-shot and forecast-head-fine-tuned TimesFM and Chronos models did not beat the best core baselines in this experiment.
@@ -52,7 +52,7 @@ allow interactive JavaScript. The HTML preview provides a separate reading surfa
 - `growth_outputs/masterclass/` and `growth_outputs/submission/`: frozen plan,
   predictions, scores, source fingerprints, coverage, and decision evidence.
 - `sources/README.md`: primary sources and the historical comparability decision.
-- `notebooks/source/`: scratch and takeover notes for future work.
+- `notebooks/source/`: visible experiment sources and scratch/takeover notes.
 
 The 2010–2024 file is audited but not used directly for primary training: 5,738
 early form-100 reports cross the 2012 TFR-to-Call-Report transition without a
@@ -96,3 +96,38 @@ to EMIGRANT BANK on the same certificate; reported deposits grow by roughly
 retains this outcome and flags the unresolved institutional change. It explains
 why squared loss can be dominated by one observation; it does not justify
 silently deleting a difficult example or tuning to historical performance.
+
+## Concrete teaching and follow-up checks
+
+Customers can request cash before bank loans are repaid. Both editions now begin
+with a USD 100 asset illustration and a USD 20 withdrawal requiring USD 5 more cash.
+Worked examples explain missing values, log growth, MAE/RMSE, and the difference
+between a forecast and an ordering of banks. The complete EDA remains visible.
+
+The original four-model scorecard remains identifiable. Additional comparisons,
+developed after seeing 2024, give seasonal median **3.500 pp MAE** and show
+**21.9%** equal-quarter precision for Ridge versus **18.8%** for size-only Ridge.
+The paired bank-cluster interval for that precision difference is **+0.77 to
++5.40 pp**; the MLP–Ridge interval includes either ordering. These intervals are
+conditional on fixed forecasts, fixed lists, and the three shared 2024 dates.
+They do not measure uncertainty across future economic periods.
+
+Capacity checks vary the selected fraction at 5%, 10%, and 20% while holding the
+outcome group at the lowest-growth 10%. A verified October 1, 2023 merger and a
+bounded Silvergate wind-down window support a separate, incomplete-event
+sensitivity. Foundation-model checks use identical rows within history bands.
+The final lesson describes a proposed shadow-mode trial with frozen models and
+separate scoring-time and outcome-time coverage counts.
+
+Generate the posting visuals after executing the notebooks:
+
+```sh
+.venv/bin/python export_story.py
+.venv/bin/python package_project.py
+```
+
+The export command creates a fresh versioned folder under `exports/` with twelve
+numbered portrait PNGs, one matching PDF, and a source manifest. Shared teaching
+prose lives in `notebook_lessons.py` and `concrete_teaching.py`; experiment sources
+under `notebooks/source/` are copied into visible notebook cells. The builder uses
+Ruff for formatting when it is available and preserves runnable Python otherwise.

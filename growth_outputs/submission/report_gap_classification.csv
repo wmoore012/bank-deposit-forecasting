@@ -1,0 +1,7 @@
+Stage,Observed status,Rows
+Prior,Adjacent prior report,258073
+Prior,Dataset start,7019
+Prior,First observed bank report,73
+Next after prior-adjacency filter,Adjacent next report,251064
+Next after prior-adjacency filter,Dataset end,4483
+Next after prior-adjacency filter,Institution stops before dataset end,2526

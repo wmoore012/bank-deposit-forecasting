@@ -1,0 +1,17 @@
+Period,Population,Model,Rows,Flagged event rows,MAE (pp),RMSE (pp)
+Validation,All eligible rows,Zero growth,13834,4,4.741089457031777,122.50347058000042
+Validation,All eligible rows,Persistence,13834,4,11.352137853114955,554.3813557955214
+Validation,All eligible rows,Ridge,13834,4,4.948792183430758,122.47887274745801
+Validation,All eligible rows,MLP,13834,4,4.8722837793368345,122.46557822382825
+Validation,Verified event intervals omitted,Zero growth,13830,4,3.690259052573888,7.654066609992741
+Validation,Verified event intervals omitted,Persistence,13830,4,10.30700755373026,540.7847338627967
+Validation,Verified event intervals omitted,Ridge,13830,4,3.8987757335841575,7.563693418043586
+Validation,Verified event intervals omitted,MLP,13830,4,3.8243836354813014,7.294592434462175
+Reused 2024,All eligible rows,Zero growth,13532,0,3.601063663616614,6.718198451753548
+Reused 2024,All eligible rows,Persistence,13532,0,5.110073267139842,9.455749860546256
+Reused 2024,All eligible rows,Ridge,13532,0,3.6410362808759604,6.512193824463368
+Reused 2024,All eligible rows,MLP,13532,0,3.627317977895338,6.429240270152202
+Reused 2024,Verified event intervals omitted,Zero growth,13532,0,3.601063663616614,6.718198451753548
+Reused 2024,Verified event intervals omitted,Persistence,13532,0,5.110073267139842,9.455749860546256
+Reused 2024,Verified event intervals omitted,Ridge,13532,0,3.6410362808759604,6.512193824463368
+Reused 2024,Verified event intervals omitted,MLP,13532,0,3.627317977895338,6.429240270152202

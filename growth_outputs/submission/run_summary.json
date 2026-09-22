@@ -17,8 +17,8 @@
   },
   "winner_by_historical_MAE": "Zero growth",
   "mlp_minus_ridge_MAE_pp": -0.013718302980622266,
-  "conclusion": "The MLP did not improve typical forecast error over predicting zero growth (3.627 versus 3.601 pp MAE). It had the lowest RMSE (6.429 pp), and its 99th-percentile absolute error was below zero growth. Its small edge over Ridge does not establish dependable nonlinear value. Anomaly detection was not evaluated; the masterclass evaluates TimesFM separately after this core conclusion. These are three reused 2024 quarters. All four comparisons: Zero growth: MAE 3.601, RMSE 6.718 pp; Persistence: MAE 5.110, RMSE 9.456 pp; Ridge: MAE 3.641, RMSE 6.512 pp; MLP: MAE 3.627, RMSE 6.429 pp.",
-  "training_seconds": 10.74612595900544,
+  "conclusion": "The MLP had higher mean absolute error than zero growth (3.627 versus 3.601 pp MAE). It had the lowest RMSE (6.429 pp), and its 99th-percentile absolute error was below zero growth. Its small edge over Ridge does not establish dependable nonlinear value. Anomaly detection was not evaluated; the masterclass evaluates TimesFM separately after this core conclusion. Training used 214,425 examples across 38 predictor quarters. Evaluation used 13,532 examples across three reused 2024 predictor quarters. All four comparisons: Zero growth: MAE 3.601, RMSE 6.718 pp; Persistence: MAE 5.110, RMSE 9.456 pp; Ridge: MAE 3.641, RMSE 6.512 pp; MLP: MAE 3.627, RMSE 6.429 pp.",
+  "training_seconds": 10.763382625009399,
   "frozen_plan": {
     "target": {
       "target": "log_growth",

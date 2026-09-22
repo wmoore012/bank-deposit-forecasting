@@ -18,8 +18,20 @@
       "sha256": "b257457e4e821d6a0d9f88ffc4e6e0da80e4ccf67fa394cadb21587b50b23d59"
     },
     "vendor/wm_notecards-0.1.0-py3-none-any.whl": {
-      "bytes": 95352,
-      "sha256": "1f0ec7629113119ac85bc72b52a1dce9012bc3c9ece61f5bb52d9042e41deb48"
+      "bytes": 97953,
+      "sha256": "f90496c4482f2a995aac9789367f2cc4e734a03e0407cb9bf413076b7f66f848"
+    },
+    "data/fdic_financials_2013_2024.csv": {
+      "bytes": 19360519,
+      "sha256": "ed8b1a663c1a9c417a71069f7c3a947ca41e670f2123d0c54ef868443ce3b0d8"
+    },
+    "sources/structural_events.csv": {
+      "bytes": 561,
+      "sha256": "badc00326af2892a9acb877be8f77d671bf74e8326afd63e333ea6b10b680a83"
+    },
+    "sources/banking_context.md": {
+      "bytes": 2377,
+      "sha256": "7bbdd60907a81152f27f8b3539dc33a896f79c5f87f63eb54fc615c3af709974"
     }
   }
 }

@@ -1,0 +1,6 @@
+Input,Calculation from report,Value before scaling
+Deposit size,log(DEPDOM in USD thousands),12.65934966169347
+Cash / assets,"6,091 / 342,362",0.01779110999468399
+Loans / assets,"217,753 / 342,362",0.6360314520887248
+Equity / assets,"24,953 / 342,362",0.07288484119148737
+Previous deposit growth,"log(314,692 / 316,758)",-0.006543692682418495

@@ -2,6 +2,11 @@
 from pathlib import Path
 from textwrap import dedent
 import hashlib
+import ast
+import shutil
+import subprocess
+from notebook_lessons import OPENING, teach_story
+from concrete_teaching import apply_concrete_teaching, GUIDES
 import nbformat as nbf
 ROOT=Path(__file__).resolve().parent
 sections=[]
@@ -51,6 +56,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from wm_notecards import WMTheme, init_notebook
 from wm_notecards.cards import (
     preview_card,
+    big_number_card,
     question_card,
     takeaway_card,
     wm_counterintuitive_card,
@@ -61,6 +67,7 @@ from wm_notecards.charts import (
     style_fig_wm,
     wm_render_figure_card,
 )
+from wm_notecards.pictogram import pictogram_card
 from wm_notecards.eda import display_data_chips, wm_compare_fields
 from wm_notecards.tables import (
     display_cols_by_dtype,
@@ -77,10 +84,10 @@ FEATURES = [
     'prior_growth',
 ]
 MODEL_COLORS = {
-    'Zero growth': '#737B86',
-    'Persistence': '#AF7721',
-    'Ridge': '#526EAA',
-    'MLP': '#007F89',
+    'Zero growth': '#627381',
+    'Persistence': '#A86223',
+    'Ridge': '#3F6294',
+    'MLP': '#0B6F75',
 }
 MODEL_ORDER = ['Zero growth', 'Persistence', 'Ridge', 'MLP']
 SIZE_ORDER = ['Smallest', 'Lower middle', 'Upper middle', 'Largest']
@@ -101,12 +108,9 @@ tf.config.threading.set_intra_op_parallelism_threads(2)
 tf.config.experimental.enable_op_determinism()
 tf.keras.utils.set_random_seed(SEED)
 
-theme = WMTheme(
-    width=860,
-    height=480,
-    accent='#007F89',
-    plot_bg='#FFFFFF',
-)
+# Use the repository's standard card, chip, typography, and accent colors.
+# White plotting surfaces match the user's preferred white cards.
+theme = WMTheme(width=860, height=480, card_bg='#FFFFFF', plot_bg='#FFFFFF')
 init_notebook(expand_colab_outputs=True)
 
 # VS Code places native Plotly outputs against the left edge of the output
@@ -116,6 +120,12 @@ display(
     HTML(
         """
         <style>
+        body { background: #EFF1F6; color: #172F3E; }
+        .jp-RenderedMarkdown { color: #172F3E; }
+        .jp-RenderedMarkdown h1, .jp-RenderedMarkdown h2, .jp-RenderedMarkdown h3 { color: #172F3E; }
+        .jp-RenderedMarkdown a { color: #3F6294; }
+        .jp-RenderedMarkdown { max-width: 940px; margin: auto; line-height: 1.65; }
+
         .output_container .output {
             display: flex !important;
             justify-content: center !important;
@@ -230,6 +240,15 @@ def ordered_rows(frame, columns, category_orders=None, ascending=True):
 # %% NOTEBOOK CELL
 def chart(fig, name, title, subtitle='', height=540, legend_y=-0.24):
     """Apply one visual system and one centered renderer to every chart."""
+    default_palette = {'#636efa':'#3F6294', '#EF553B':'#A86223', '#00cc96':'#0B6F75',
+                       '#ab63fa':'#76528B', '#FFA15A':'#A86223', '#19d3f3':'#0B6F75'}
+    for trace in fig.data:
+        for component in ['marker', 'line']:
+            obj = getattr(trace, component, None)
+            if obj is not None and isinstance(getattr(obj, 'color', None), str):
+                obj.color = default_palette.get(obj.color, obj.color)
+    title = title.replace(chr(36), "USD ")
+    subtitle = subtitle.replace(chr(36), "USD ")
     style_fig_wm(
         fig,
         title=title,
@@ -258,7 +277,7 @@ def chart(fig, name, title, subtitle='', height=540, legend_y=-0.24):
     fig.update_layout(
         width=860,
         height=height,
-        font=dict(size=14, family='Inter, Arial, sans-serif'),
+        font=dict(size=14, family='Inter, Arial, sans-serif', color=theme.text_main),
         title=dict(
             text=title_html,
             font=dict(size=24),
@@ -273,7 +292,7 @@ def chart(fig, name, title, subtitle='', height=540, legend_y=-0.24):
             bordercolor='#B8C2CC',
             font=dict(
                 size=14,
-                color='#182E3A',
+                color='#172F3E',
                 family='Inter, Arial, sans-serif',
             ),
         ),
@@ -287,8 +306,8 @@ def chart(fig, name, title, subtitle='', height=540, legend_y=-0.24):
             title_text='',
         ),
         margin=dict(l=85, r=45, t=155, b=155 if legend_y < -0.24 else 120),
-        paper_bgcolor='white',
-        plot_bgcolor='white',
+        paper_bgcolor=theme.card_bg,
+        plot_bgcolor=theme.plot_bg,
     )
     fig.update_xaxes(
         automargin=True,
@@ -335,6 +354,9 @@ def chart(fig, name, title, subtitle='', height=540, legend_y=-0.24):
         figure_width=860,
     )
     display(HTML(shell))
+    guide = READING_GUIDES.get(name)
+    if guide:
+        display(HTML('<p style="max-width:860px;margin:12px auto 28px;line-height:1.6;text-align:left"><strong>Read this chart:</strong> ' + html.escape(guide) + '</p>'))
 
 
 # %% NOTEBOOK CELL
@@ -471,6 +493,12 @@ print(info_buffer.getvalue())
 # %% NOTEBOOK CELL
 post_conversion.isna().sum().sort_values(ascending=False)
 # %% NOTEBOOK CELL
+# EXEMPLAR: missingness-evidence
+# These two illustrative entries show why a missing value cannot be read as zero.
+display(pd.DataFrame({
+    "Illustrative EQ entry": [np.nan, 0.0],
+    "Reading": ["No value supplied in this extract", "A recorded numeric zero; verify its reporting meaning"],
+}))
 # Explain the missingness result while it is still on screen.
 source_audit = post_conversion.merge(reporting, on=keys, validate='one_to_one')
 missing_eq = source_audit['EQ'].isna()
@@ -533,9 +561,9 @@ quarterly_panel['Median deposits (USD million)'] = (
 )
 
 fig = px.line(quarterly_panel, x='Date', y='Banks', markers=True)
-fig.update_traces(line=dict(color='#007F89', width=3), marker=dict(size=5))
+fig.update_traces(line=dict(color='#0B6F75', width=3), marker=dict(size=5))
 fig.update_yaxes(title='Reporting banks', rangemode='tozero')
-chart(fig, 'reporting_banks_time', 'How many banks report each quarter?',
+chart(fig, 'reporting_banks_time', 'The reporting population shrinks across 2013–2024',
       '2013–2024; distinct bank certificates')
 
 fig = px.line(
@@ -544,9 +572,9 @@ fig = px.line(
     y='Median deposits (USD million)',
     markers=True,
 )
-fig.update_traces(line=dict(color='#AF7721', width=3), marker=dict(size=5))
+fig.update_traces(line=dict(color='#A86223', width=3), marker=dict(size=5))
 fig.update_yaxes(title='Median deposits (USD million)', rangemode='tozero')
-chart(fig, 'median_deposits_time', 'How does a typical reported balance change?',
+chart(fig, 'median_deposits_time', 'Median reported deposits rise as the bank population changes',
       'Median domestic deposits per reporting bank; USD million')
 
 assert not long_history.duplicated(keys).any()
@@ -616,12 +644,12 @@ fig = px.bar(
     x='Missing rows',
     y='Field',
     orientation='h',
-    color_discrete_sequence=['#AF7721'],
+    color_discrete_sequence=['#A86223'],
 )
 chart(
     fig,
     'missingness',
-    'Where are source values missing?',
+    'Equity accounts for the missing financial values',
     '2010–2024 audit file; no values filled',
 )
 
@@ -640,7 +668,7 @@ table(
         ['Missing_equity', 'BKCLASS', 'CALLFORM'],
         ascending=[False, True, True],
     ),
-    'Which reporting groups lack equity?',
+    'Missing equity is concentrated in particular reporting groups',
 )
 
 fig = px.line(
@@ -648,13 +676,13 @@ fig = px.line(
     x='Date',
     y='Equity_missing',
     markers=True,
-    color_discrete_sequence=['#AF7721'],
+    color_discrete_sequence=['#A86223'],
 )
 fig.update_yaxes(tickformat='.2%', title='Reports missing equity')
 chart(
     fig,
     'coverage_time',
-    'Does missing equity change over time?',
+    'Missing equity varies across report dates',
     'All reports in the 2010–2024 audit file',
 )
 
@@ -814,7 +842,7 @@ fig = px.bar(
     x='Size group',
     y='Dollar share',
     text=concentration['Dollar share'].map('{:.2%}'.format),
-    color_discrete_sequence=['#007F89'],
+    color_discrete_sequence=['#0B6F75'],
 )
 fig.update_yaxes(
     tickformat='.0%',
@@ -824,7 +852,7 @@ fig.update_yaxes(
 chart(
     fig,
     'experiment0',
-    'Where did the decline dollars sit?',
+    'Large banks dominate the dollar-decline totals',
     'Size cutoffs learned from the original training period',
 )
 
@@ -873,7 +901,7 @@ fig = go.Figure(
         line=dict(color='#ADB5BD', width=5),
         marker=dict(
             size=16,
-            color=['#737B86', '#007F89'],
+            color=['#627381', '#0B6F75'],
         ),
         text=[
             f'{value:.2f}%'
@@ -1071,11 +1099,11 @@ fig = px.bar(
     y='Next report status',
     orientation='h',
     text='Rows',
-    color_discrete_sequence=['#007F89'],
+    color_discrete_sequence=['#0B6F75'],
 )
 fig.update_traces(texttemplate='%{text:,}', textposition='outside')
 fig.update_layout(margin=dict(l=230, r=100, t=110, b=65))
-chart(fig, 'next_report', 'Why are some next-quarter outcomes unavailable?',
+chart(fig, 'next_report', 'The dataset ends before some banks have a next report',
       'Counts exclude the adjacent reports shown in the table')
 
 unobserved_columns = [
@@ -1168,6 +1196,7 @@ def describe_split(name, frame):
     return {
         'Period': name,
         'Rows': len(frame),
+        'Predictor quarters': frame['date'].nunique(),
         'Banks': frame['CERT'].nunique(),
         'First predictor': frame['date'].min(),
         'Last predictor': frame['date'].max(),
@@ -1213,33 +1242,32 @@ table(split_summary, 'Accounting dates define this retrospective experiment')
 
 fig = go.Figure()
 period_colors = {
-    'Training': '#007F89',
-    'Validation': '#AF7721',
-    'Reused holdout': '#526EAA',
+    'Training': '#0B6F75',
+    'Validation': '#A86223',
+    'Reused holdout': '#3F6294',
 }
 
-for split in split_summary.itertuples(index=False):
-    fig.add_trace(
-        go.Scatter(
-            x=[split[3], split[4]],
-            y=[split.Period, split.Period],
-            mode='lines+markers',
-            name=split.Period,
-            line={
-                'width': 9,
-                'color': period_colors[split.Period],
-            },
-        )
-    )
-
-fig.update_xaxes(title='Predictor report date')
+# Named columns keep bank counts out of the calendar axis.
+for record in split_summary.to_dict('records'):
+    period = record['Period']
+    dates = rows.loc[
+        rows['date'].between(record['First predictor'], record['Last predictor']), 'date'
+    ].drop_duplicates().sort_values()
+    fig.add_trace(go.Scatter(
+        x=dates, y=[period] * len(dates), mode='lines+markers', name=period,
+        line={'width': 7, 'color': period_colors[period]},
+        marker={'size': 8},
+        hovertemplate='%{x|%b %Y}<br>Predictor report<extra>%{fullData.name}</extra>',
+    ))
+    fig.add_annotation(x=record['First predictor'], y=period, yshift=26,
+        text=f"{record['Predictor quarters']} quarters · {record['Rows']:,} examples",
+        showarrow=False, xanchor='left' if period == 'Training' else 'right')
+fig.update_xaxes(title='Predictor report date', type='date', dtick='M12', tickformat='%Y',
+                 range=['2013-01-01', '2025-03-01'])
+fig.update_yaxes(categoryorder='array', categoryarray=['Reused holdout','Validation','Training'])
 fig.update_layout(showlegend=False)
-chart(
-    fig,
-    'split',
-    'The model must live in time',
-    'Each outcome occurs one quarter after its predictor report',
-)
+chart(fig, 'split', '38 quarters teach the model; later quarters select and evaluate it',
+      'Each dot is a predictor quarter. December boundary gaps keep outcomes in their assigned stage.')
 
 split_summary.to_csv(OUT / 'splits.csv', index=False)
 takeaway(
@@ -1247,7 +1275,7 @@ takeaway(
     (
         'Training rows set imputation and scaling. Validation chooses Ridge '
         'strength and training duration. The reused 2024 holdout measures the '
-        'frozen design.'
+        'previously selected design. Later research choices were informed by viewing 2024.'
     ),
 )
 ''')
@@ -1345,8 +1373,8 @@ fig = make_subplots(
     horizontal_spacing=0.16,
 )
 for column, values, color in [
-    (1, ordinary_percent, '#AF7721'),
-    (2, log_values, '#007F89'),
+    (1, ordinary_percent, '#A86223'),
+    (2, log_values, '#0B6F75'),
 ]:
     central = central_target_view(values)
     fig.add_trace(
@@ -1390,7 +1418,7 @@ fig.add_trace(go.Scatter(
     mode='markers',
     text=largest_growth['NAME'].str.title(),
     name='Five largest percentages',
-    marker=dict(color='#AF7721', size=11),
+    marker=dict(color='#A86223', size=11),
     hovertemplate='%{text}<br>Starting deposits: $%{x:,.2f}M<br>Growth: %{y:,.1f}%<extra></extra>',
 ))
 
@@ -1416,7 +1444,7 @@ for (_, bank), name, (x_offset, y_offset) in zip(
         arrowhead=2,
         arrowsize=.6,
         arrowwidth=1,
-        arrowcolor='#AF7721',
+        arrowcolor='#A86223',
         font={'size': 12, 'color': '#6B4A1E'},
         bgcolor='rgba(255,255,255,.9)',
     )
@@ -1425,7 +1453,7 @@ fig.update_yaxes(type='log', title='Positive next-quarter growth (%, log scale)'
 chart(
     fig,
     'small_denominator_growth',
-    'Why can ordinary growth reach 522,646%?',
+    'Tiny starting balances magnify percentage growth',
     f'{len(background):,} sampled background rows plus the five largest; negative and zero growth remain in the experiment',
     height=640,
 )
@@ -1626,7 +1654,7 @@ table(pd.DataFrame({'Stage':['Before one update','After one update'],
     'Squared error':[error_demo**2,new_error]}),'A gradient step we can check by hand',{'Squared error':'{:.6f}'})
 fig=go.Figure(go.Scatter(x=[0,1,2,3],y=[0,0,0,0],mode='lines+markers+text',
     text=['5 financial inputs','32 ReLU units','16 ReLU units','1 linear output'],textposition='top center',
-    marker=dict(size=22,color='#007F89'),line=dict(color='#526EAA')))
+    marker=dict(size=22,color='#0B6F75'),line=dict(color='#3F6294')))
 fig.update_xaxes(visible=False, range=[-0.5, 3.5])
 fig.update_yaxes(visible=False, range=[-0.3, 0.5])
 chart(fig,'architecture','Five inputs become one growth forecast','737 trainable weights and biases',height=380)
@@ -1750,7 +1778,7 @@ cash_comparison.figure.update_xaxes(
 chart(
     cash_comparison.figure,
     'cash_by_outcome_box',
-    'Do cash ratios differ when deposits later fall?',
+    'Banks with later declines held a higher median cash ratio',
     f'Training rows; view ends at the 99th percentile ({cash_window:.1%}); boxes use all rows',
 )
 table(
@@ -1776,13 +1804,13 @@ fig = px.line(
     y='Decline share',
     markers=True,
 )
-fig.update_traces(line=dict(color='#AF7721', width=3), marker=dict(size=5))
+fig.update_traces(line=dict(color='#A86223', width=3), marker=dict(size=5))
 fig.update_yaxes(title='Bank-quarters with deposit decline', tickformat='.0%')
 fig.update_xaxes(title='Predictor quarter')
 chart(
     fig,
     'decline_share_time',
-    'Did deposit declines cluster in particular quarters?',
+    'Deposit declines became much less common in early 2020',
     'Training period only; next-quarter decline divided by eligible rows',
 )
 
@@ -1816,7 +1844,7 @@ fig.update_xaxes(
 chart(
     fig,
     'training_seasonality',
-    'Does the decline pattern repeat by quarter of year?',
+    'Declines were more common after Q1; individual years varied',
     'Each dot is one training year; descriptive check only',
 )
 seasonal_medians = seasonality.groupby('Quarter')['Decline share'].median()
@@ -1853,9 +1881,9 @@ fig = go.Figure(
         zmin=-1,
         zmax=1,
         colorscale=[
-            [0, '#AF7721'],
+            [0, '#A86223'],
             [0.5, '#F4F6F7'],
-            [1, '#007F89'],
+            [1, '#0B6F75'],
         ],
         text=heat_text,
         texttemplate='%{text}',
@@ -1869,7 +1897,7 @@ fig.update_yaxes(autorange='reversed')
 chart(
     fig,
     'feature_correlations',
-    'Do the five inputs repeat the same information?',
+    'Pairwise rank correlations are modest across all five inputs',
     'Training rows only; lower triangle; Spearman correlation',
 )
 
@@ -1892,16 +1920,16 @@ fig = px.scatter(
     x='prior_growth',
     y='log_growth',
     opacity=0.20,
-    color_discrete_sequence=['#007F89'],
+    color_discrete_sequence=['#0B6F75'],
 )
-fig.add_hline(y=0, line_color='#737B86')
-fig.add_vline(x=0, line_color='#737B86')
+fig.add_hline(y=0, line_color='#627381')
+fig.add_vline(x=0, line_color='#627381')
 fig.update_xaxes(title='Prior-quarter log growth')
 fig.update_yaxes(title='Next-quarter log growth')
 chart(
     fig,
     'persistence_eda',
-    'Does last quarter point toward next quarter?',
+    'Similar prior growth leads to widely different next-quarter growth',
     (
         'Random training sample; middle 98% chart window; '
         f'{len(sample) - visible.sum():,} sampled points outside the view'
@@ -2129,7 +2157,7 @@ fig.update_layout(showlegend=False)
 chart(
     fig,
     'validation',
-    'Which method has the smallest validation miss?',
+    'Validation errors compare every method on the same bank-quarters',
     '2023 Q1–Q3 predictor rows; lower MAE is better',
 )
 
@@ -2185,7 +2213,7 @@ table(
             'Share of squared error',
         ]
     ],
-    'Which validation outcomes dominate squared error?',
+    'One extreme balance jump dominates validation squared error',
     {'growth': '{:+.1%}', 'Share of squared error': '{:.1%}'},
 )
 
@@ -2204,8 +2232,8 @@ takeaway(
 # The learning curve shows the validation-selected training duration.
 fig = go.Figure()
 for column, label, color, dash in [
-    ('loss', 'Training', '#007F89', 'solid'),
-    ('val_loss', 'Validation', '#AF7721', 'dash'),
+    ('loss', 'Training', '#0B6F75', 'solid'),
+    ('val_loss', 'Validation', '#A86223', 'dash'),
 ]:
     fig.add_trace(
         go.Scatter(
@@ -2221,7 +2249,7 @@ fig.update_yaxes(title='Mean squared log-growth error', type='log')
 chart(
     fig,
     'learning',
-    'Did learning improve held-out predictions?',
+    'Validation loss determines when neural-network training stops',
     'Logarithmic loss axis; best validation weights restored',
 )
 
@@ -2325,7 +2353,7 @@ for column_number, metric_name in enumerate(
                 mode='markers+text',
                 marker={
                     'size': 14 if model_name == winner_name else 10,
-                    'color': '#007F89' if model_name == winner_name else '#9AA6B2',
+                    'color': '#0B6F75' if model_name == winner_name else '#9AA6B2',
                 },
                 text=[f'{value:.3f} pp'],
                 textposition='middle right',
@@ -2352,7 +2380,7 @@ for column_number, metric_name in enumerate(
 chart(
     fig,
     'comparison',
-    'Which forecast has the smallest error?',
+    'Zero growth leads MAE; the neural network leads RMSE',
     'Zero growth has the lowest MAE; the MLP has the lowest RMSE among the four core models.',
     height=500,
 )
@@ -2431,7 +2459,7 @@ fig.add_bar(
     y=tradeoff['Band'].astype(str),
     orientation='h',
     marker_color=[
-        '#AF7721' if delta > 0 else '#007F89'
+        '#A86223' if delta > 0 else '#0B6F75'
         for delta in tradeoff['MLP minus zero (pp)']
     ],
     text=[f'{delta:+.2f} pp' for delta in tradeoff['MLP minus zero (pp)']],
@@ -2479,7 +2507,7 @@ relative_rmse_drop = 100 * (
     rmse_so_far['Zero growth'] - rmse_so_far['MLP']
 ) / rmse_so_far['Zero growth']
 takeaway(
-    'What does the 4.3% improvement buy us?',
+    'The RMSE improvement changes large-error scoring',
     (
         f'The MLP lowered RMSE by {relative_rmse_drop:.1f}% relative to zero '
         'growth, yet zero growth still had the lower MAE. This measures '
@@ -2516,7 +2544,7 @@ fig = px.scatter(
     y='Predicted (%)',
     hover_data=['NAME', 'CERT', 'date'],
     opacity=0.30,
-    color_discrete_sequence=['#007F89'],
+    color_discrete_sequence=['#0B6F75'],
 )
 
 lower_bound = min(
@@ -2644,7 +2672,7 @@ quarter_scores = ordered_rows(
 table(quarter_scores,'Three quarters, separate error checks',{'MAE (pp)':'{:.3f}','RMSE (pp)':'{:.3f}'})
 fig=px.line(quarter_scores,x='Quarter',y='MAE (pp)',color='Model',symbol='Model',markers=True,color_discrete_map=MODEL_COLORS)
 fig.update_xaxes(tickvals=sorted(result_frame.date.unique()),tickformat='%b %Y')
-chart(fig,'quarter_errors','Is one quarter driving the pooled error?','Predictor quarters; each outcome is one quarter later')
+chart(fig,'quarter_errors','Quarter-level errors expose variation hidden by the average','Predictor quarters; each outcome is one quarter later')
 equal_quarter = (
     quarter_scores.groupby('Model', sort=False, observed=True)['MAE (pp)']
     .mean()
@@ -2721,7 +2749,7 @@ A constant forecast has no defined rank correlation. Leave that value missing.
 ''',r'''
 # Fix the quarterly review capacity before looking at the rankings.
 question_card(
-    title='Could the forecast identify weak banks before the outcome?',
+    title='Which selected banks later had the lowest deposit growth?',
     theme=theme,
     body='Rank banks from predicted growth first. Then compare that list with the realized bottom decile inside the same quarter.',
     kicker='Identification',
@@ -2759,9 +2787,10 @@ for quarter, part in result_frame.groupby('date'):
                 'Model': model_name,
                 'Banks': len(part),
                 'Selected': selected_count,
-                'Hits': hits,
-                'Precision': hits / selected_count,
-                'Recall': hits / len(realized_bottom),
+                'Hits': hits if has_ranking_signal else np.nan,
+                'Precision': hits / selected_count if has_ranking_signal else np.nan,
+                'Ranking status': 'Forecast ordering' if has_ranking_signal else 'All predictions tied; no ranking signal',
+                'Recall': hits / len(realized_bottom) if has_ranking_signal else np.nan,
                 'Spearman': spearman,
                 'Random expectation': selected_count / len(part),
             }
@@ -2779,9 +2808,9 @@ ranked_models['Quarter label'] = (
     .dt.strftime('%b %Y')
 )
 quarter_colors = {
-    'Mar 2024': '#007F89',
-    'Jun 2024': '#4F6FA9',
-    'Sep 2024': '#AC7524',
+    'Mar 2024': '#0B6F75',
+    'Jun 2024': '#3F6294',
+    'Sep 2024': '#A86223',
 }
 quarter_symbols = {'Mar 2024': 'circle', 'Jun 2024': 'diamond', 'Sep 2024': 'square'}
 
@@ -2831,7 +2860,7 @@ fig.add_vline(
 chart(
     fig,
     'ranking',
-    'How many selected banks actually had weak growth?',
+    'Ridge leads in March and June; the network leads in September',
     'Dashed line: about 10% by chance. Ridge leads Mar and Jun; MLP leads Sep.',
     height=520,
     legend_y=-0.47,
@@ -2905,7 +2934,7 @@ table(
 # %% NOTEBOOK CELL
 # EXEMPLAR: counterintuitive-boundary
 wm_counterintuitive_card(
-    title='Unusual is a reason to look, not a diagnosis',
+    title='An unusual report starts an investigation',
     theme=theme,
     why_misread=(
         'A sudden deposit change can look like a warning signal.'
@@ -2968,13 +2997,13 @@ rmse = metrics.set_index('Model')['RMSE (pp)']
 assert mae.idxmin() == 'Zero growth'
 assert rmse.idxmin() == 'MLP'
 conclusion = (
-    f'The MLP did not improve typical forecast error over predicting zero '
-    f'growth ({mae["MLP"]:.3f} versus {mae["Zero growth"]:.3f} pp MAE). '
+    f'The MLP had higher mean absolute error than zero growth '
+    f'({mae["MLP"]:.3f} versus {mae["Zero growth"]:.3f} pp MAE). '
     f'It had the lowest RMSE ({rmse["MLP"]:.3f} pp), and its 99th-percentile '
     'absolute error was below zero growth. Its small edge over Ridge does not '
     'establish dependable nonlinear value. Anomaly detection was not evaluated; '
     'the masterclass evaluates TimesFM separately after this core conclusion. '
-    'These are three reused 2024 quarters. '
+    'Training used 214,425 examples across 38 predictor quarters. Evaluation used 13,532 examples across three reused 2024 predictor quarters. '
     'All four comparisons: '
     + '; '.join(
         f'{model}: MAE {mae[model]:.3f}, RMSE {rmse[model]:.3f} pp'
@@ -3017,9 +3046,9 @@ seed_results = ordered_rows(
     ['Seed'],
 )
 table(seed_results,'Same data, different starting weights',{'MAE (pp)':'{:.3f}','RMSE (pp)':'{:.3f}'})
-fig=px.scatter(seed_results,x='MAE (pp)',y=seed_results.Seed.astype(str),color_discrete_sequence=['#007F89'])
+fig=px.scatter(seed_results,x='MAE (pp)',y=seed_results.Seed.astype(str),color_discrete_sequence=['#0B6F75'])
 fig.update_yaxes(title='Random seed')
-chart(fig,'seeds','How sensitive is validation error to initialization?','Primary historical model remains seed 42')
+chart(fig,'seeds','Three starting weights produce different validation errors','Primary historical model remains seed 42')
 seed_results.to_csv(OUT/'seed_sensitivity.csv',index=False)
 takeaway('Three starts, one dataset',f'Validation MAE ranges from {seed_results["MAE (pp)"].min():.3f} to {seed_results["MAE (pp)"].max():.3f} pp across the three fixed starts. Seed 42 remains the primary fit.')
 ''',advanced=True)
@@ -3048,12 +3077,12 @@ table(interval,'Paired bank-cluster bootstrap',{'Observed MAE difference (pp)':'
 fig = px.histogram(
     x=deltas,
     nbins=35,
-    color_discrete_sequence=['#007F89'],
+    color_discrete_sequence=['#0B6F75'],
 )
 fig.add_vline(x=0, line_dash='dash', line_color='#343B43')
 fig.update_xaxes(title='MLP minus Ridge MAE (pp)')
 fig.update_yaxes(title='Bootstrap resamples')
-chart(fig,'bootstrap','Does the comparison survive resampling banks?','500 paired cluster resamples; negative favors MLP')
+chart(fig,'bootstrap','The MLP–Ridge uncertainty interval crosses zero','500 paired cluster resamples; negative favors MLP')
 interval.to_csv(OUT/'bootstrap_interval.csv',index=False)
 takeaway('Uncertainty belongs beside the difference',f'The observed difference is {difference:+.4f} pp; the conditional 95% interval is [{low:+.4f}, {high:+.4f}] pp. '+('The interval crosses zero.' if low<=0<=high else 'The interval stays on one side of zero.')+' Three quarters still limit temporal generalization.')
 ''',advanced=True)
@@ -3135,7 +3164,7 @@ fig = make_subplots(
 for row, size in enumerate(['Below USD 1bn', 'At least USD 1bn'], start=1):
     for col, field in enumerate(['DEPUNA', 'DEPUNINS'], start=1):
         part = aggregate.loc[aggregate['Asset group'].eq(size) & aggregate['Field'].eq(field)].sort_values('Date')
-        for state, color in [('Nonzero', '#007F89'), ('Zero', '#AF7721'), ('Missing', '#D8DDE3')]:
+        for state, color in [('Nonzero', '#0B6F75'), ('Zero', '#A86223'), ('Missing', '#D8DDE3')]:
             fig.add_trace(go.Scatter(
                 x=part['Date'], y=part[state] / part['Rows'], name=state,
                 stackgroup=f'{row}-{col}', mode='lines',
@@ -3145,7 +3174,7 @@ for row, size in enumerate(['Below USD 1bn', 'At least USD 1bn'], start=1):
                 hovertemplate=state + ': %{y:.1%}<br>%{customdata[0]:,} of %{customdata[1]:,} reports<extra></extra>',
             ), row=row, col=col)
         fig.update_yaxes(range=[0, 1], tickformat='.0%', row=row, col=col)
-chart(fig, 'uninsured_states', 'Did values disappear, or become zero?',
+chart(fig, 'uninsured_states', 'Reported zeros and missing values follow different patterns',
       'Every panel sums to 100% of reports. Gray = missing; amber = stored zero; teal = nonzero.', height=630)
 
 # %% NOTEBOOK CELL
@@ -3339,14 +3368,14 @@ for col, metric in enumerate(['MAE (pp)', 'RMSE (pp)'], start=1):
         x=ordered[metric], y=ordered['Model'], mode='markers+text',
         text=[f'{value:.3f}' for value in ordered[metric]],
         textposition=['middle left' if model == 'TimesFM' and col == 2 else 'middle right' for model in ordered['Model']],
-        marker=dict(size=12, color=['#007F89' if i == 0 else '#526EAA' if model == 'Chronos-Bolt' else '#9AA6B2' for i, model in enumerate(ordered['Model'])]),
+        marker=dict(size=12, color=['#0B6F75' if i == 0 else '#3F6294' if model == 'Chronos-Bolt' else '#9AA6B2' for i, model in enumerate(ordered['Model'])]),
         showlegend=False, hovertemplate='%{y}: %{x:.4f} pp<extra></extra>',
     ), row=1, col=col)
     fig.update_xaxes(type='log', title='Error (pp), log scale',
                      tickvals=[4, 6, 10] if col == 1 else [10, 100, 300],
                      range=[np.log10(ordered[metric].min())-.1, np.log10(ordered[metric].max())+.35], row=1, col=col)
     fig.update_yaxes(categoryorder='array', categoryarray=ordered.Model.tolist(), autorange='reversed', row=1, col=col)
-chart(fig, 'foundation_models', 'Which approach earns its complexity on these rows?',
+chart(fig, 'foundation_models', 'Pretrained forecasts face the same historical scoring rules',
       'Lower is better; every score uses all holdout rows. Foundation models receive histories, not the five tabular features.', height=490)
 mae_winner = all_scores.loc[all_scores['MAE (pp)'].idxmin(), 'Model']
 rmse_winner = all_scores.loc[all_scores['RMSE (pp)'].idxmin(), 'Model']
@@ -3487,7 +3516,7 @@ validation_curve = pd.DataFrame(curves)
 fig = px.line(validation_curve, x='step', y='validation_log_MAE', color='Model', markers=True)
 fig.update_xaxes(title='Training updates', tickvals=[0, 128, 256])
 fig.update_yaxes(title='Validation MAE in log balance; lower is better')
-chart(fig, 'finetuning_validation', 'Did the updates help on validation?',
+chart(fig, 'finetuning_validation', 'Validation scores measure the effect of adaptation',
       'Step zero is the untouched pretrained model. Only these 2023 scores select the checkpoint.', height=400)
 table(selection, 'The checkpoint decision was frozen before scoring 2024')
 
@@ -3502,14 +3531,14 @@ for col, metric in enumerate(['MAE (pp)', 'RMSE (pp)'], start=1):
         x=ordered[metric], y=ordered.Model, mode='markers+text',
         text=[f'{v:.3f}' for v in ordered[metric]],
         textposition=['middle left' if m.startswith('TimesFM') and col == 2 else 'middle right' for m in ordered.Model],
-        marker=dict(size=11, color=['#007F89' if i == 0 else '#526EAA' if 'selected' in m else '#A0A8B0' for i, m in enumerate(ordered.Model)]),
+        marker=dict(size=11, color=['#0B6F75' if i == 0 else '#3F6294' if 'selected' in m else '#A0A8B0' for i, m in enumerate(ordered.Model)]),
         showlegend=False, hovertemplate='%{y}: %{x:.4f} pp<extra></extra>',
     ), row=1, col=col)
     fig.update_xaxes(type='log', title='Error (pp), log scale',
                      tickvals=[4, 6, 10] if col == 1 else [10, 100, 300],
                      range=[np.log10(ordered[metric].min())-.1, np.log10(ordered[metric].max())+.4], row=1, col=col)
     fig.update_yaxes(categoryorder='array', categoryarray=ordered.Model.tolist(), autorange='reversed', row=1, col=col)
-chart(fig, 'adaptation_comparison', 'Does validation-selected adaptation beat our baselines?',
+chart(fig, 'adaptation_comparison', 'Adapted models remain accountable to the simple baselines',
       'Blue = validation-selected foundation-model checkpoint; teal = lowest score. All 13,532 evaluation rows remain.', height=590)
 for label in ['TimesFM', 'Chronos-Bolt']:
     chosen = finetuned_scores.set_index('Model').loc[label + ' · selected']
@@ -3620,7 +3649,7 @@ def arrange_story():
     )
     model_section = (
         '9 · How are the four forecasts fitted?',
-        'Fit imputation and scaling on training rows, choose settings with validation, and inspect the learning curve before opening 2024.',
+        '''**Training changes weights; validation chooses settings and stopping time.** Ridge is selected using validation MAE after conversion to percentage growth. MLP early stopping monitors MSE in log growth and restores its best validation weights. Those selection criteria differ. We preserve this original comparison and report both percentage-point metrics afterward. Exponentiating a mean log forecast gives a back-transformed point forecast; it generally differs from expected arithmetic growth. The 2024 evaluation has already been examined during this project.''',
         '# Learn missing-value replacements' + model_code,
         False,
     )
@@ -3702,32 +3731,69 @@ wm_counterintuitive_card(
 SECTION_SUMMARIES = {'1 ·': 'We chose 2013–2024. First learn the column names, then see why older reports stay in an audit and how we handle missing values.', '2 ·': 'A forecast needs a real next-quarter answer. We keep comparable domestic-bank reports with neighboring quarters and positive balances, and count every exclusion.', '3 ·': 'We check when deposit declines happened and whether the same quarter of the year tends to repeat a pattern. Only training-period outcomes are used.', '4 ·': 'Five inputs describe bank size, cash, loans, equity, and recent deposit growth. Their distributions show what the model receives before any scaling.', '5 ·': 'The first dollar-based score mostly rewarded choosing large banks. A size-only rule nearly matched the neural network, motivating a proportional-growth target.', '6 ·': 'We predict log growth so very small starting balances do not create enormous training targets. The same bank appears in two representations; predictions are converted back to percentage growth for scoring.', '7 ·': 'Training comes first, validation comes later, and 2024 comes last. A timeline shows the gaps that keep future outcomes out of earlier training.', '8 ·': 'A network learns by adjusting weights. One small calculation shows how an update reduces a mistake before we examine the full network.', '9 ·': 'We fit four forecasts and use validation to choose settings. The learning curve shows when more training stops helping.', '10 ·': 'Zero growth has the lowest average absolute error; the small MLP has the lowest RMSE. We compare both scores because large mistakes receive extra weight in RMSE.', '11 ·': 'The models make larger mistakes on the weakest-growth banks. These after-the-fact groups explain errors; they cannot prove advance warning.', '12 ·': 'With room to review only 10% of banks, Ridge leads in March and June and the MLP leads in September. Both find weak-growth banks more often than the roughly 10% random reference.', '13 ·': 'Anomaly detection could flag unusual reports for review. It answers a different question from forecasting, and this project has not tested its review-list quality.', '14 ·': 'The simple baseline remains hard to beat. The MLP improves RMSE but does not establish dependable added value; review-list usefulness needs its own evidence.', 'Bonus · Can': 'We tested TimesFM and Chronos on every evaluation row. Neither zero-shot approach beat the best core baselines; one very large TimesFM miss dominates its RMSE.', 'Bonus · Does': 'We fine-tuned both forecasting heads using earlier data and selected checkpoints with validation. Neither adapted model beat the core baselines on the reused 2024 evaluation.', 'Deeper check ·': 'We kept 2010–2012 out of the main comparison because reporting definitions still need a historical mapping. Here are the counts and reporting-form checks behind that choice.', 'Deeper lesson · Does': 'Changing starting weights changes the validation score. Three fixed seeds show that sensitivity without choosing a winner from 2024.', 'Deeper lesson · How': 'We resample whole banks to see how much the MLP–Ridge difference varies. The interval crosses zero, so the small observed advantage is uncertain.', 'Deeper lesson · Can': 'A blank, a stored zero, and a nonzero deposit value mean different things. We keep these uninsured-deposit columns out until their reporting definitions are verified.', 'Appendix · Rebuild': 'This reproduces the original dollar-capture experiment. The network adds only 0.27 percentage points over selecting banks by size.', 'Appendix · Keep': 'The original experiment preserves useful lessons about probabilities, review capacity, and dollar outcomes. Use these as deeper questions after finishing the core comparison.'}
 PROJECT_SUMMARY = '**Project in one minute.** Can a bank’s reports help us predict next-quarter deposit growth and choose which banks to review? We train on 214,425 bank-quarter records and evaluate 13,532 later records. Zero growth wins average absolute error; the small neural network wins RMSE, which gives large misses extra weight. Ridge and the neural network identify weak-growth banks more often than random selection in three historical quarters. This is a research prototype, with a reused 2024 holdout and no measured savings.\n\n**What you will see:** data definitions and cleaning decisions → time patterns → five inputs and a growth target → time-separated training → forecast errors → a capacity-limited review list. Pretrained models, fine-tuning, and deeper audits follow the main conclusion.\n\n**Tools:** Python, pandas, scikit-learn, TensorFlow, Plotly, Jupyter, and uv; PyTorch and MLX for the foundation-model extensions.'
 
+SECTION_SUMMARIES.update({
+    'Follow-up · Do': 'The original four-model comparison left simple median and size-only rules untested. Here we fit them using earlier data and measure their results on the reused 2024 period.',
+    'Follow-up · What': 'A verified merger and a bounded liquidation window change which balance movements we are measuring. We retain primary scores and calculate a separate sensitivity.',
+    'Next decision ·': 'A selected bank gives a human a place to begin investigating its funding, deposit composition, and history.',
+    'Bonus · Does a short': 'A single short-history case dominates TimesFM error. Compare identical bank populations across models within each history band.',
+})
+
 def section_summary(title):
-    return next((text for prefix, text in SECTION_SUMMARIES.items() if title.startswith(prefix)), '')
+    return next((SECTION_SUMMARIES[prefix] for prefix in sorted(SECTION_SUMMARIES, key=len, reverse=True) if title.startswith(prefix)), '')
+
+def readable_blocks(source):
+    """Preserve statements while giving long cells visible stopping points."""
+    formatter = shutil.which("ruff")
+    if formatter:
+        source = subprocess.run(
+            [formatter, "format", "--stdin-filename", "lesson.py", "-"],
+            input=source, text=True, capture_output=True, check=True,
+        ).stdout
+    # Keep each chart's reading guide with the visible calculation it explains.
+    calls = [n for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name) and n.func.id == 'chart'
+             and len(n.args) > 1 and isinstance(n.args[1], ast.Constant)]
+    prefix = "\n".join(f"READING_GUIDES[{n.args[1].value!r}] = {GUIDES[n.args[1].value]!r}"
+                       for n in calls if n.args[1].value in GUIDES)
+    if prefix: source = prefix + "\n" + source
+    lines = source.splitlines()
+    if len(lines) <= 80:
+        return [source.strip()]
+    statements = ast.parse(source).body
+    blocks, start, last_end = [], 0, 0
+    for statement in statements:
+        if statement.end_lineno - start > 65 and last_end > start:
+            blocks.append("\n".join(lines[start:last_end]).strip())
+            start = last_end
+        last_end = statement.end_lineno
+    blocks.append("\n".join(lines[start:]).strip())
+    return [block for block in blocks if block]
 
 def build():
     arrange_story()
+    teach_story(sections)
+    apply_concrete_teaching(sections)
     for edition,name in [('masterclass','FDIC_Deep_Learning_Masterclass.ipynb'),('submission','FDIC_Deep_Learning_Submission.ipynb')]:
         cells=[]
         for index,(title,prose,source,advanced) in enumerate(sections):
             if advanced and edition=='submission':continue
             # Keep the same analysis code in both deliverables; reduce teaching prose only.
-            if edition=='submission' and index not in [0, 1]:
-                prose=prose.split('\n\n')[0]
-            lead = PROJECT_SUMMARY if index == 0 else '**In plain terms:** ' + section_summary(title)
+            lead = OPENING if index == 0 else '**In plain terms:** ' + prose
+            if index > 0: prose = ''
             cells.append(nbf.v4.new_markdown_cell(('# ' if index==0 else '## ')+title+'\n\n'+lead+'\n\n'+prose))
             if source:
                 if index==0:
-                    source=f"NOTEBOOK_EDITION = {edition!r}\n"+source
+                    source=f"NOTEBOOK_EDITION = {edition!r}\nREADING_GUIDES = {{}}\n# %% NOTEBOOK CELL\n"+source
 
                 # A teaching notebook should reveal one idea at a time. Source
                 # sections can opt into visible pauses without duplicating the
                 # surrounding prose or changing execution order.
                 code_blocks = source.split('# %% NOTEBOOK CELL')
                 cells.extend(
-                    nbf.v4.new_code_cell(block.strip())
+                    nbf.v4.new_code_cell(part)
                     for block in code_blocks
                     if block.strip()
+                    for part in readable_blocks(block.strip())
                 )
         for i,c in enumerate(cells):c.id=hashlib.sha256(f'{edition}:{i}:{c.source}'.encode()).hexdigest()[:12]
         nb=nbf.v4.new_notebook(cells=cells,metadata={'kernelspec':{'display_name':'DL Assignment (.venv)','language':'python','name':'python3'},'language_info':{'name':'python'}})

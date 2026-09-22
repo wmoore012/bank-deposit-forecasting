@@ -10,6 +10,6 @@
     "growth_outputs/timesfm_finetuned_predictions.json": "3431be9d570ce17100915ba115a4daa7223fae4294b0ab560da7a3f471735db2",
     "communications/simple-models-fight-back/training_histogram.json": "9d8a6cb88a97dc169cfbdff64f611564f66dfb4e551a574e7b941e8c7963f0e8"
   },
-  "pages": 8,
+  "pages": 11,
   "historical_evaluation": "2024 Q1\u2013Q3 predictors; reused"
 }

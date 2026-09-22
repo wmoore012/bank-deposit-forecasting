@@ -1,6 +1,8 @@
 # Simple Models Fight Back — accuracy review
 
-**Use `simple_models_fight_back_reviewed.pdf` for the corrected version.**
+**Current design: `simple_models_fight_back_data_science_story_v5.html` and its matching PDF.**
+
+The user-supplied nine-slide HTML design supersedes the six-slide Matplotlib layout below. Slides 4 and 6 clarify squared-error training and show the first ten entries of the actual Ridge review queue. The full 454-row queue is saved in `ridge_review_queue_2024-03-31.csv`; forecasts are ordinary-growth fractions. Sort order is Ridge prediction ascending, then FDIC certificate number, matching the notebook. The 112 matches were recomputed against the realized 454-bank bottom decile. The HTML prints at 1792 × 1024 CSS pixels per page. A small slide 8 chart-height adjustment prevents its conclusion from colliding with its footnote.
 
 The supplied PDF and generator are preserved as `supplied_original.pdf` and
 `supplied_generator.py.txt`. They are archival inputs, not the recommended posting

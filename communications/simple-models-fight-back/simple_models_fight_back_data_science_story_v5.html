@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Simple Models Fight Back — data-science carousel</title>
+<style>
+:root {
+  --ink:#2C3034; --muted:#74797D; --grid:#E8E6DF; --cyan:#18BFE0; --teal:#0B7279;
+  --blue:#496B9D; --warm:#F4F2EC; --card:#FFFDF9; --border:#D8D5CD;
+}
+* { box-sizing:border-box; }
+html, body { margin:0; background:var(--warm); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { padding:24px 0 60px; }
+.page { width:1792px; height:1024px; margin:0 auto 28px; padding:44px; background:var(--warm); page-break-after:always; overflow:hidden; }
+.card {
+  width:100%; height:100%; background:var(--card); border:2px solid var(--border); border-radius:34px;
+  padding:54px 74px 62px; position:relative; overflow:hidden;
+}
+.eyebrow { font-size:18px; font-weight:900; letter-spacing:.06em; color:var(--teal); margin-bottom:28px; }
+h1 { font-size:60px; line-height:1.02; margin:0 0 20px; letter-spacing:-1.5px; font-weight:950; max-width:1500px; }
+.cyan { color:var(--cyan); }
+.deck { font-size:29px; margin:0 0 22px; color:var(--muted); }
+.split { display:grid; grid-template-columns:1fr 1fr; gap:44px; align-items:center; }
+.split.tight { gap:20px; }
+.split.season { grid-template-columns:1.18fr .82fr; gap:34px; margin-top:14px; }
+.vizbox { min-width:0; }
+.mat { background:#F1F2EF; border-radius:22px; padding:18px 22px 8px; }
+
+.wideviz { margin-top:6px; }
+.hist { margin-top:8px; }
+.tie-line {
+  display:flex; gap:22px; flex-wrap:wrap; margin:14px 0 12px; font-size:26px; font-weight:850; color:var(--muted);
+}
+.tie-line span { border:2px solid var(--border); border-radius:999px; padding:10px 18px; background:#fff; }
+.tie-line b { color:var(--cyan); }
+.sublead { font-size:30px; font-weight:900; margin:14px 0 0; }
+.metric-labels { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:10px 0 0; }
+.metric-labels div { display:flex; align-items:baseline; justify-content:center; gap:12px; font-size:24px; }
+.metric-labels span { color:var(--muted); font-weight:900; }
+.callout {
+  text-align:center; font-size:35px; line-height:1.05; font-weight:950; letter-spacing:-.6px;
+  margin:14px auto 0; max-width:1450px;
+}
+.callout.final { font-size:42px; margin-top:12px; }
+.next { text-align:center; font-size:26px; font-weight:850; color:var(--muted); margin-top:10px; }
+.foot { position:absolute; left:74px; right:74px; bottom:30px; font-size:16px; line-height:1.25; color:var(--muted); }
+.axis { fill:var(--muted); font-size:18px; font-weight:800; }
+.axislabel { fill:var(--muted); font-size:19px; font-weight:850; }
+.viztitle { font-size:21px; font-weight:950; color:var(--muted); text-align:center; margin:0 0 2px; }
+.mini-reaction { text-align:center; font-size:28px; font-weight:950; margin-top:-12px; }
+.receipt { padding-top:8px; }
+.dumbbell { margin-top:0; }
+svg { display:block; width:100%; height:auto; }
+@media print {
+  body { padding:0; background:white; }
+  .page { margin:0; }
+}
+
+.p1 .callout.lower { margin-top:34px; }
+.p3 .callout.lower { margin-top:34px; }
+.p3 .split.tight { margin-bottom:4px; }
+.strongfoot { font-size:19px; color:#565C60; font-weight:650; bottom:26px; }
+.foot { font-size:17px; color:#5E6468; }
+.bars { margin-top:2px; }
+.score-receipt { margin:34px auto 8px; max-width:620px; }
+.score-row { display:grid; grid-template-columns:1fr auto; align-items:end; gap:30px; padding:22px 8px; border-bottom:2px solid var(--grid); }
+.score-row.winner .score-name, .score-row.winner .score-num { color:var(--teal); }
+.score-name { font-size:28px; font-weight:900; }
+.score-num { font-size:54px; line-height:.95; font-weight:950; }
+.score-unit { text-align:center; margin-top:14px; font-size:20px; font-weight:850; color:var(--muted); }
+.receipt .mini-reaction { margin-top:34px; }
+
+.p4 .wideviz svg { height:430px; width:100%; }
+.p4 .callout { margin-top:4px; font-size:31px; }
+.p4 .strongfoot { font-size:22px; font-weight:750; color:#4F5559; bottom:24px; }
+
+/* Story v2 additions */
+.p2 .deck { max-width:1500px; margin-bottom:18px; }
+.bank-story {
+  display:grid; grid-template-columns:1.08fr .92fr; gap:38px; align-items:stretch; margin-top:10px;
+}
+.bank-mat, .report-mat {
+  background:#F1F2EF; border-radius:24px; padding:24px 28px; min-width:0;
+}
+.withdrawal {
+  display:flex; align-items:center; gap:18px; font-size:29px; font-weight:950; margin-bottom:16px;
+}
+.withdrawal .emoji { font-size:46px; }
+.bank-balance {
+  display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:10px;
+}
+.balance-col { background:#FFFDF9; border-radius:18px; padding:18px 20px; }
+.balance-col h3 { margin:0 0 12px; font-size:20px; color:#74797D; letter-spacing:.03em; }
+.balance-row { display:flex; justify-content:space-between; gap:16px; font-size:25px; font-weight:850; padding:8px 0; border-bottom:1px solid #E8E6DF; }
+.balance-row:last-child { border-bottom:0; }
+.cash-gap {
+  margin-top:16px; display:flex; align-items:center; justify-content:space-between; gap:20px;
+  background:#FFFDF9; border-radius:18px; padding:18px 20px;
+}
+.cash-gap .math { font-size:28px; font-weight:950; }
+.cash-gap .gap { font-size:35px; font-weight:950; color:#B36C24; white-space:nowrap; }
+.report-flow { display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 18px; }
+.report-icon { font-size:58px; }
+.report-arrow { font-size:38px; color:#A1A7AA; font-weight:950; }
+.report-title { font-size:30px; font-weight:950; text-align:center; margin:0 0 8px; }
+.report-copy { font-size:25px; line-height:1.24; color:#565C60; text-align:center; margin:0 auto; max-width:590px; }
+.report-chips { display:flex; justify-content:center; flex-wrap:wrap; gap:10px; margin-top:18px; }
+.report-chip { background:#FFFDF9; border-radius:999px; padding:9px 15px; font-size:19px; font-weight:900; color:#565C60; }
+.p2 .story-punch { text-align:center; margin-top:22px; font-size:35px; line-height:1.02; font-weight:950; }
+.p2 .foot { font-size:16px; }
+
+.p4 .objective-grid {
+  display:grid; grid-template-columns:.86fr 1.22fr .86fr; gap:24px; align-items:stretch; margin-top:18px;
+}
+.obj-card, .loss-card { background:#F1F2EF; border-radius:22px; padding:24px 26px; min-width:0; }
+.obj-kicker { color:#74797D; font-size:18px; font-weight:950; letter-spacing:.04em; margin-bottom:10px; }
+.obj-name { font-size:30px; font-weight:950; margin-bottom:16px; }
+.formula { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:30px; font-weight:850; color:#2C3034; margin:16px 0; }
+.obj-note { font-size:21px; line-height:1.2; color:#666C70; font-weight:700; }
+.loss-card { text-align:center; background:#FFFDF9; border:3px solid #E5E2DA; }
+.loss-title { font-size:24px; font-weight:950; color:#74797D; margin-bottom:18px; }
+.loss-examples { display:flex; align-items:center; justify-content:center; gap:34px; margin-top:12px; }
+.loss-example { min-width:180px; }
+.loss-example .miss { font-size:22px; font-weight:900; color:#74797D; }
+.loss-example .loss { font-size:60px; line-height:1; font-weight:950; margin-top:8px; }
+.loss-vs { font-size:28px; font-weight:950; color:#A2A7AA; }
+.loss-caption { margin-top:22px; font-size:28px; font-weight:950; color:#0B7279; }
+.p4 .callout { margin-top:26px; font-size:33px; }
+.p4 .foot { font-size:16px; }
+.p8 .next { margin-top:30px; }
+
+.p5 .callout.lower, .p5 .metrics-lower { margin-top:34px; }
+.p5 .split.tight { margin-bottom:4px; }
+.p6 .wideviz svg { height:430px; width:100%; }
+.p6 .callout { margin-top:4px; font-size:31px; }
+.p6 .strongfoot, .p6 .rank-foot { font-size:22px; font-weight:750; color:#4F5559; bottom:24px; }
+
+.p8 .season-meaning{
+  margin:2px auto 16px;
+  max-width:1480px;
+  font-size:24px;
+  line-height:1.25;
+  color:#565C60;
+  font-weight:760;
+}
+.p8 .season-meaning b{ color:#2C3034; font-weight:950; }
+.p8 .season-meaning span{
+  display:inline-block;
+  margin-left:12px;
+  color:#0B7279;
+  font-weight:900;
+}
+.p8 .callout.final{
+  margin-top:24px;
+  font-size:38px;
+  line-height:1.06;
+}
+.p8 .next{
+  margin-top:26px;
+  font-size:23px;
+  line-height:1.22;
+  max-width:1380px;
+  margin-left:auto;
+  margin-right:auto;
+}
+
+/* Slide 2 v4: show the liquidity mismatch without teaching a balance-sheet class */
+.p2 .bank-balance, .p2 .cash-gap { display:none !important; }
+.p2 .bank-mat { padding:24px 28px; }
+.p2 .withdrawal {
+  margin-bottom:18px;
+  justify-content:flex-start;
+  font-size:28px;
+}
+.p2 .vault-grid {
+  display:grid;
+  grid-template-columns:.78fr 1.22fr;
+  gap:16px;
+  align-items:stretch;
+}
+.p2 .vault-card, .p2 .loan-card {
+  background:#FFFDF9;
+  border-radius:20px;
+  padding:20px 18px 18px;
+  text-align:center;
+}
+.p2 .vault-icon, .p2 .loan-icons {
+  font-size:58px;
+  line-height:1;
+  margin-bottom:10px;
+}
+.p2 .loan-icons { letter-spacing:.06em; }
+.p2 .vault-label {
+  color:#74797D;
+  font-size:18px;
+  font-weight:950;
+  letter-spacing:.035em;
+}
+.p2 .vault-value {
+  margin-top:6px;
+  font-size:52px;
+  line-height:1;
+  font-weight:950;
+  color:#2C3034;
+}
+.p2 .liquidity-joke {
+  margin-top:16px;
+  background:#FFFDF9;
+  border-radius:18px;
+  padding:15px 18px 16px;
+  text-align:center;
+}
+.p2 .joke-math {
+  font-size:21px;
+  color:#74797D;
+  font-weight:850;
+  margin-bottom:6px;
+}
+.p2 .joke-punch {
+  font-size:25px;
+  line-height:1.08;
+  color:#B36C24;
+  font-weight:950;
+}
+
+/* v5: split the overloaded seasonality ending into two clear beats */
+.p8 .season-meaning{
+  margin:4px auto 20px;
+  max-width:1510px;
+  font-size:24px;
+  line-height:1.28;
+  color:#565C60;
+  font-weight:760;
+}
+.p8 .season-meaning b{ color:#2C3034; font-weight:950; }
+.p8 .season-meaning span{
+  display:block;
+  margin-top:6px;
+  color:#0B7279;
+  font-weight:900;
+}
+.p8 .season-full{
+  width:1220px;
+  margin:0 auto;
+}
+.p8 .season-full .viztitle{
+  margin-bottom:2px;
+}
+.p8 .season-svg-slot svg{
+  width:100%;
+  max-height:420px;
+}
+.p8 .callout{
+  margin-top:12px;
+  font-size:38px;
+}
+.p8 .foot{
+  font-size:17px;
+}
+
+.p9 .deck{
+  margin-top:0;
+  margin-bottom:22px;
+  max-width:1500px;
+}
+.p9 .season-rule{
+  display:grid;
+  grid-template-columns:.88fr 1.12fr;
+  gap:34px;
+  align-items:center;
+  margin-top:6px;
+}
+.p9 .rule-flow,
+.p9 .result-panel{
+  background:#F1F2EF;
+  border-radius:24px;
+  padding:26px 30px;
+  min-height:410px;
+}
+.p9 .rule-flow{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+.p9 .quarter-row{
+  display:flex;
+  gap:14px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.p9 .quarter-row span{
+  min-width:82px;
+  text-align:center;
+  padding:12px 16px;
+  border-radius:999px;
+  background:#FFFDF9;
+  color:#2C3034;
+  font-size:24px;
+  font-weight:950;
+}
+.p9 .rule-arrow{
+  color:#9AA0A3;
+  font-size:34px;
+  line-height:1;
+  margin:8px 0;
+  font-weight:950;
+}
+.p9 .rule-box{
+  width:100%;
+  max-width:520px;
+  background:#FFFDF9;
+  border-radius:18px;
+  padding:18px 22px;
+  text-align:center;
+  font-size:24px;
+  line-height:1.1;
+  font-weight:950;
+  color:#2C3034;
+}
+.p9 .rule-box small{
+  display:block;
+  margin-top:6px;
+  color:#74797D;
+  font-size:18px;
+  font-weight:800;
+}
+.p9 .rule-box.forecast{
+  color:#0B7279;
+}
+.p9 .result-panel{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.p9 .score-receipt.big{
+  margin-top:22px;
+}
+.p9 .score-receipt.big .score-row{
+  padding:20px 4px;
+}
+.p9 .score-receipt.big .score-name{
+  font-size:30px;
+}
+.p9 .score-receipt.big .score-num{
+  font-size:56px;
+}
+.p9 .mini-reaction{
+  margin-top:18px;
+  font-size:30px;
+}
+.p9 .next-test{
+  text-align:center;
+  margin-top:24px;
+}
+.p9 .next-kicker{
+  color:#74797D;
+  font-size:18px;
+  font-weight:950;
+  letter-spacing:.05em;
+}
+.p9 .next-question{
+  margin-top:4px;
+  font-size:38px;
+  line-height:1.02;
+  font-weight:950;
+}
+.p9 .next-rule{
+  margin-top:8px;
+  color:#565C60;
+  font-size:23px;
+  font-weight:800;
+}
+.p9 .foot{
+  font-size:16px;
+}
+
+.p4 h1 {font-size:55px;}
+.p4 .objective-grid {margin-top:36px;}
+.p6 h1 {font-size:45px;line-height:1.12;}
+.p6 .deck {font-size:25px;}
+.queue-layout {display:grid;grid-template-columns:1fr 350px;gap:32px;margin-top:26px;}
+.queue-mat {background:#F1F2EF;border-radius:22px;padding:22px 26px;}
+.queue {border-collapse:collapse;width:100%;font-size:21px;}
+.queue th {font-size:16px;text-align:left;color:var(--muted);padding:10px 8px;}
+.queue td {padding:8px;border-top:1px solid var(--border);font-weight:750;}
+.queue th:last-child,.queue td:last-child {text-align:right;font-variant-numeric:tabular-nums;}
+.queue td:first-child {color:var(--teal);width:65px;}
+.queue-receipts {padding:16px 10px;}
+.benchmark {font-size:24px;font-weight:850;padding:16px 0;border-bottom:2px solid var(--grid);}
+.benchmark strong {display:block;font-size:48px;line-height:1.1;margin-top:8px;}
+.benchmark small {font-size:21px;color:var(--muted);}
+.benchmark.winner {color:var(--teal);}
+.p6 .rank-foot {font-size:19px;}
+@page {size:1792px 1024px;margin:0;}
+</style>
+</head>
+<body>
+<section class="page p1">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 01</div>
+<h1>NEURAL NETS LEARN COMPLEX FUNCTIONS.<br/><span class="cyan">MINE LOST MAE TO A CONSTANT.</span></h1>
+<p class="deck">I used quarterly bank reports to predict <b>next-quarter deposit growth.</b></p>
+<div class="split">
+<div class="vizbox mat"><svg aria-label="MLP architecture 5 inputs, 32 hidden units, 16 hidden units, 1 forecast" role="img" viewbox="0 0 980 450"><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="120.0" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="120.0" y2="158.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="120.0" y2="196.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="120.0" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="120.0" y2="273.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="120.0" y2="311.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="120.0" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="177.5" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="177.5" y2="158.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="177.5" y2="196.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="177.5" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="177.5" y2="273.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="177.5" y2="311.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="177.5" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="235.0" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="235.0" y2="158.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="235.0" y2="196.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="235.0" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="235.0" y2="273.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="235.0" y2="311.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="235.0" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="292.5" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="292.5" y2="158.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="292.5" y2="196.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="292.5" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="292.5" y2="273.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="292.5" y2="311.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="292.5" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="350.0" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="350.0" y2="158.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="350.0" y2="196.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="350.0" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="350.0" y2="273.3"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="350.0" y2="311.7"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="130" x2="360" y1="350.0" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="120.0" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="120.0" y2="177.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="120.0" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="120.0" y2="292.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="120.0" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="158.3" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="158.3" y2="177.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="158.3" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="158.3" y2="292.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="158.3" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="196.7" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="196.7" y2="177.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="196.7" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="196.7" y2="292.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="196.7" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="235.0" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="235.0" y2="177.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="235.0" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="235.0" y2="292.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="235.0" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="273.3" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="273.3" y2="177.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="273.3" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="273.3" y2="292.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="273.3" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="311.7" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="311.7" y2="177.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="311.7" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="311.7" y2="292.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="311.7" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="350.0" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="350.0" y2="177.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="350.0" y2="235.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="350.0" y2="292.5"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="360" x2="610" y1="350.0" y2="350.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="610" x2="860" y1="120.0" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="610" x2="860" y1="177.5" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="610" x2="860" y1="235.0" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="610" x2="860" y1="292.5" y2="120.0"></line><line opacity=".9" stroke="#C3C9CC" stroke-width="1.6" x1="610" x2="860" y1="350.0" y2="120.0"></line><circle cx="130" cy="120.0" fill="#FFFFFF" r="12" stroke="#8A9093" stroke-width="3"></circle><circle cx="130" cy="177.5" fill="#FFFFFF" r="12" stroke="#8A9093" stroke-width="3"></circle><circle cx="130" cy="235.0" fill="#FFFFFF" r="12" stroke="#8A9093" stroke-width="3"></circle><circle cx="130" cy="292.5" fill="#FFFFFF" r="12" stroke="#8A9093" stroke-width="3"></circle><circle cx="130" cy="350.0" fill="#FFFFFF" r="12" stroke="#8A9093" stroke-width="3"></circle><text fill="#2C3034" font-size="26" font-weight="950" text-anchor="middle" x="130" y="405">5 inputs</text><circle cx="360" cy="120.0" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="360" cy="158.3" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="360" cy="196.7" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="360" cy="235.0" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="360" cy="273.3" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="360" cy="311.7" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="360" cy="350.0" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><text fill="#2C3034" font-size="26" font-weight="950" text-anchor="middle" x="360" y="405">32</text><circle cx="610" cy="120.0" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="610" cy="177.5" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="610" cy="235.0" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="610" cy="292.5" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><circle cx="610" cy="350.0" fill="#18BFE0" r="12" stroke="#18BFE0" stroke-width="3"></circle><text fill="#2C3034" font-size="26" font-weight="950" text-anchor="middle" x="610" y="405">16</text><circle cx="860" cy="120.0" fill="#0B7279" r="12" stroke="#0B7279" stroke-width="3"></circle><text fill="#2C3034" font-size="26" font-weight="950" text-anchor="middle" x="860" y="405">1 forecast</text><text fill="#74797D" font-size="23" font-weight="900" text-anchor="middle" x="495" y="55">MLP · 5 → 32 → 16 → 1</text></svg></div>
+<div class="vizbox"><svg aria-label="MAE comparison between zero-growth constant and MLP" role="img" viewbox="0 0 840 390"><line stroke="#E8E6DF" stroke-width="1.8" x1="250.0" x2="250.0" y1="58" y2="270"></line><text class="axis" text-anchor="middle" x="250.0" y="310">0</text><line stroke="#E8E6DF" stroke-width="1.8" x1="377.5" x2="377.5" y1="58" y2="270"></line><text class="axis" text-anchor="middle" x="377.5" y="310">1</text><line stroke="#E8E6DF" stroke-width="1.8" x1="505.0" x2="505.0" y1="58" y2="270"></line><text class="axis" text-anchor="middle" x="505.0" y="310">2</text><line stroke="#E8E6DF" stroke-width="1.8" x1="632.5" x2="632.5" y1="58" y2="270"></line><text class="axis" text-anchor="middle" x="632.5" y="310">3</text><line stroke="#E8E6DF" stroke-width="1.8" x1="760.0" x2="760.0" y1="58" y2="270"></line><text class="axis" text-anchor="middle" x="760.0" y="310">4</text><text fill="#2C3034" font-size="25" font-weight="900" text-anchor="start" x="22" y="119">0% constant</text><line stroke="#D4D3CD" stroke-linecap="round" stroke-width="9" x1="250" x2="709.1" y1="110" y2="110"></line><circle cx="709.1" cy="110" fill="#18BFE0" r="15" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#2C3034" font-size="28" font-weight="950" x="727.1" y="119">3.601</text><text fill="#2C3034" font-size="25" font-weight="900" text-anchor="start" x="22" y="223">MLP</text><line stroke="#D4D3CD" stroke-linecap="round" stroke-width="9" x1="250" x2="712.4" y1="214" y2="214"></line><circle cx="712.4" cy="214" fill="#0B7279" r="12" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#2C3034" font-size="28" font-weight="950" x="730.4" y="223">3.627</text><text class="axislabel" text-anchor="middle" x="505.0" y="365">MAE (percentage points) · lower is better</text></svg></div>
+</div>
+<div class="callout lower">THE CONSTANT PREDICTED <span class="cyan">0%</span> GROWTH FOR EVERY BANK.</div>
+<div class="foot">214,425 training examples · original four-model comparison · lower MAE is better</div>
+</div>
+</section><section class="page p2">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 02</div>
+<h1>DEPOSITS CAN LEAVE<br/><span class="cyan">BEFORE LOANS PAY BACK.</span></h1>
+<p class="deck">Imagine the internet is down because the AI models broke it 👀. You walk into your bank and ask for <b>$15 in cash.</b></p>
+<div class="bank-story">
+<div class="bank-mat"><div class="withdrawal">YOU: “$15 CASH, PLEASE.” <span class="emoji">💸</span></div><div class="vault-grid"><div class="vault-card"><div class="vault-icon">🏦</div><div class="vault-label">CASH IN THE VAULT</div><div class="vault-value">$10</div></div><div class="loan-card"><div class="loan-icons">🏠  🚗  🏪</div><div class="vault-label">MONEY ALREADY OUT AS LOANS</div><div class="vault-value">$90</div></div></div><div class="liquidity-joke"><div class="joke-math">$15 withdrawal. $10 cash.</div><div class="joke-punch">COOL. LET ME JUST TURN PART OF YOUR MORTGAGE INTO A $5 BILL.</div></div></div>
+<div class="report-mat">
+<div class="report-title">SO WHO KNOWS WHAT’S ON THE BALANCE SHEET?</div>
+<div class="report-flow">
+<span class="report-icon">🏦</span><span class="report-arrow">→</span>
+<span class="report-icon">📄</span><span class="report-arrow">→</span>
+<span class="report-icon">🏛️</span>
+</div>
+<p class="report-copy"><b>Federal banking regulators collect standardized Call Reports every quarter.</b><br/>That gives us bank-by-bank snapshots of cash, deposits, loans, capital, and more.</p>
+<div class="report-chips">
+<span class="report-chip">CASH</span><span class="report-chip">DEPOSITS</span>
+<span class="report-chip">LOANS</span><span class="report-chip">CAPITAL</span>
+</div>
+</div>
+</div>
+<div class="story-punch">THAT’S WHY I CARE ABOUT <span class="cyan">WHERE DEPOSITS MOVE NEXT.</span></div>
+<div class="foot">Illustrative balance sheet. Current U.S. reserve requirement ratios are 0%; this project is about liquidity, not enforcing a reserve-minimum rule.</div>
+</div>
+</section><section class="page p3">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 03</div>
+<h1>SO WHY WAS <span class="cyan">0% GROWTH</span> SO HARD TO BEAT?</h1>
+<div class="hist"><svg aria-label="Training target histogram with zero-growth reference line" role="img" viewbox="0 0 1430 580"><line stroke="#E8E6DF" stroke-width="1.6" x1="110" x2="1320" y1="460.0" y2="460.0"></line><text class="axis" text-anchor="end" x="92" y="467.0">0k</text><line stroke="#E8E6DF" stroke-width="1.6" x1="110" x2="1320" y1="352.0" y2="352.0"></line><text class="axis" text-anchor="end" x="92" y="359.0">10k</text><line stroke="#E8E6DF" stroke-width="1.6" x1="110" x2="1320" y1="244.0" y2="244.0"></line><text class="axis" text-anchor="end" x="92" y="251.0">20k</text><line stroke="#E8E6DF" stroke-width="1.6" x1="110" x2="1320" y1="136.0" y2="136.0"></line><text class="axis" text-anchor="end" x="92" y="143.0">30k</text><rect fill="#BCC2C5" height="9.9" rx="3" width="48.4" x="111.0" y="450.1"></rect><rect fill="#BCC2C5" height="15.1" rx="3" width="48.4" x="161.4" y="444.9"></rect><rect fill="#BCC2C5" height="25.8" rx="3" width="48.4" x="211.8" y="434.2"></rect><rect fill="#BCC2C5" height="45.7" rx="3" width="48.4" x="262.2" y="414.3"></rect><rect fill="#BCC2C5" height="81.3" rx="3" width="48.4" x="312.7" y="378.7"></rect><rect fill="#BCC2C5" height="148.1" rx="3" width="48.4" x="363.1" y="311.9"></rect><rect fill="#BCC2C5" height="248.8" rx="3" width="48.4" x="413.5" y="211.2"></rect><rect fill="#BCC2C5" height="357.1" rx="3" width="48.4" x="463.9" y="102.9"></rect><rect fill="#BCC2C5" height="368.0" rx="3" width="48.4" x="514.3" y="92.0"></rect><rect fill="#BCC2C5" height="303.1" rx="3" width="48.4" x="564.8" y="156.9"></rect><rect fill="#BCC2C5" height="214.5" rx="3" width="48.4" x="615.2" y="245.5"></rect><rect fill="#BCC2C5" height="147.3" rx="3" width="48.4" x="665.6" y="312.7"></rect><rect fill="#BCC2C5" height="96.1" rx="3" width="48.4" x="716.0" y="363.9"></rect><rect fill="#BCC2C5" height="63.1" rx="3" width="48.4" x="766.4" y="396.9"></rect><rect fill="#BCC2C5" height="42.6" rx="3" width="48.4" x="816.8" y="417.4"></rect><rect fill="#BCC2C5" height="29.9" rx="3" width="48.4" x="867.2" y="430.1"></rect><rect fill="#BCC2C5" height="20.9" rx="3" width="48.4" x="917.7" y="439.1"></rect><rect fill="#BCC2C5" height="15.1" rx="3" width="48.4" x="968.1" y="444.9"></rect><rect fill="#BCC2C5" height="11.0" rx="3" width="48.4" x="1018.5" y="449.0"></rect><rect fill="#BCC2C5" height="7.8" rx="3" width="48.4" x="1068.9" y="452.2"></rect><rect fill="#BCC2C5" height="6.3" rx="3" width="48.4" x="1119.3" y="453.7"></rect><rect fill="#BCC2C5" height="4.8" rx="3" width="48.4" x="1169.7" y="455.2"></rect><rect fill="#BCC2C5" height="4.0" rx="3" width="48.4" x="1220.2" y="456.0"></rect><rect fill="#BCC2C5" height="3.3" rx="3" width="48.4" x="1270.6" y="456.7"></rect><line stroke="#18BFE0" stroke-width="7" x1="504.7" x2="504.7" y1="46" y2="460"></line><text fill="#0B7279" font-size="28" font-weight="950" x="526.7" y="62">0% growth forecast</text><line stroke="#D8D5CD" stroke-width="2" x1="144.9" x2="144.9" y1="460" y2="469"></line><text class="axis" text-anchor="middle" x="144.9" y="500">-10</text><line stroke="#D8D5CD" stroke-width="2" x1="504.7" x2="504.7" y1="460" y2="469"></line><text class="axis" text-anchor="middle" x="504.7" y="500">0</text><line stroke="#D8D5CD" stroke-width="2" x1="864.6" x2="864.6" y1="460" y2="469"></line><text class="axis" text-anchor="middle" x="864.6" y="500">10</text><line stroke="#D8D5CD" stroke-width="2" x1="1224.4" x2="1224.4" y1="460" y2="469"></line><text class="axis" text-anchor="middle" x="1224.4" y="500">20</text><text class="axislabel" text-anchor="middle" x="715.0" y="543">100 × log(next deposits / current deposits)</text></svg></div>
+<div class="callout">A LOT OF THE TRAINING TARGETS LIVE NEAR ZERO.</div>
+<div class="foot">Central 98% shown · full tails stayed in the experiment · display scale is 100 × log growth</div>
+</div>
+</section><section class="page p4">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 04</div>
+<h1>BIG ERRORS GET <span class="cyan">SQUARED.</span><br/>SO THEY CAN PULL THE MODELS AWAY FROM 0%.</h1>
+<p class="deck">A miss 5× as large gets <b>25× the squared-error penalty.</b></p>
+<div class="objective-grid">
+<div class="obj-card"><div class="obj-kicker">FIXED BENCHMARK</div><div class="obj-name">0% BASELINE</div><div class="formula">ŷ = 0</div><div class="obj-note">Always predicts 0%.<br/>It never adjusts to reduce a miss.</div></div>
+<div class="loss-card"><div class="loss-title">ILLUSTRATIVE TRAINING ERRORS</div><div class="loss-examples"><div class="loss-example"><div class="miss">2-unit miss → 2²</div><div class="loss">4</div></div><div class="loss-vs">vs</div><div class="loss-example"><div class="miss">10-unit miss → 10²</div><div class="loss cyan">100</div></div></div><div class="loss-caption">BIG MISSES COST MUCH MORE.</div></div>
+<div class="obj-card"><div class="obj-kicker">LEARNED MODELS</div><div class="obj-name">RIDGE + NEURAL NET</div><div class="obj-note">Can move away from 0% to reduce those expensive large training misses.</div></div>
+</div>
+<div class="callout">A LOWER SQUARED ERROR CAN COME WITH<br/>A SLIGHTLY HIGHER AVERAGE ABSOLUTE MISS.</div>
+<div class="foot">The example uses log-growth target units. MLP minimizes mean squared error; Ridge adds an L2 penalty. This does not directly optimize the ordinary-growth RMSE shown next.</div>
+</div>
+</section><section class="page p5">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 05</div>
+<h1>ZERO WON MAE.<br/><span class="cyan">THE NEURAL NETWORK WON RMSE.</span></h1>
+<div class="metric-labels">
+<div><b>AVERAGE MISS</b><span>MAE</span></div>
+<div><b>BIG MISSES HURT MORE</b><span>RMSE</span></div>
+</div>
+<div class="split tight">
+<div class="vizbox"><svg aria-label="MAE (percentage points) · lower is better" role="img" viewbox="0 0 760 440"><line stroke="#E8E6DF" stroke-width="2" x1="250.0" x2="250.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="250.0" y="325">0</text><line stroke="#E8E6DF" stroke-width="2" x1="326.7" x2="326.7" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="326.7" y="325">1</text><line stroke="#E8E6DF" stroke-width="2" x1="403.3" x2="403.3" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="403.3" y="325">2</text><line stroke="#E8E6DF" stroke-width="2" x1="480.0" x2="480.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="480.0" y="325">3</text><line stroke="#E8E6DF" stroke-width="2" x1="556.7" x2="556.7" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="556.7" y="325">4</text><line stroke="#E8E6DF" stroke-width="2" x1="633.3" x2="633.3" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="633.3" y="325">5</text><line stroke="#E8E6DF" stroke-width="2" x1="710.0" x2="710.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="710.0" y="325">6</text><line stroke="#D8D5CD" stroke-width="2" x1="250" x2="710" y1="280" y2="280"></line><text fill="#2C3034" font-size="26" font-weight="950" text-anchor="end" x="232" y="60">Zero growth</text><line stroke="#D6D4CE" stroke-linecap="round" stroke-width="6" x1="250" x2="526.1" y1="52" y2="52"></line><circle cx="526.1" cy="52" fill="#18BFE0" r="13" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#2C3034" font-size="25" font-weight="950" x="546.1" y="61">3.601</text><text fill="#6C7175" font-size="26" font-weight="800" text-anchor="end" x="232" y="122">MLP</text><line stroke="#D6D4CE" stroke-linecap="round" stroke-width="6" x1="250" x2="528.1" y1="114" y2="114"></line><circle cx="528.1" cy="114" fill="#0B7279" r="10" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#6C7175" font-size="25" font-weight="800" x="548.1" y="123">3.627</text><text fill="#6C7175" font-size="26" font-weight="800" text-anchor="end" x="232" y="184">Ridge</text><line stroke="#D6D4CE" stroke-linecap="round" stroke-width="6" x1="250" x2="529.1" y1="176" y2="176"></line><circle cx="529.1" cy="176" fill="#496B9D" r="10" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#6C7175" font-size="25" font-weight="800" x="549.1" y="185">3.641</text><text fill="#6C7175" font-size="26" font-weight="800" text-anchor="end" x="232" y="246">Previous quarter</text><line stroke="#D6D4CE" stroke-linecap="round" stroke-width="6" x1="250" x2="641.8" y1="238" y2="238"></line><circle cx="641.8" cy="238" fill="#90969A" r="10" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#6C7175" font-size="25" font-weight="800" x="661.8" y="247">5.110</text><text class="axislabel" text-anchor="middle" x="480.0" y="426">MAE (percentage points) · lower is better</text></svg></div>
+<div class="vizbox"><svg aria-label="RMSE (percentage points) · lower is better" role="img" viewbox="0 0 760 440"><line stroke="#E8E6DF" stroke-width="2" x1="250.0" x2="250.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="250.0" y="325">0</text><line stroke="#E8E6DF" stroke-width="2" x1="342.0" x2="342.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="342.0" y="325">2</text><line stroke="#E8E6DF" stroke-width="2" x1="434.0" x2="434.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="434.0" y="325">4</text><line stroke="#E8E6DF" stroke-width="2" x1="526.0" x2="526.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="526.0" y="325">6</text><line stroke="#E8E6DF" stroke-width="2" x1="618.0" x2="618.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="618.0" y="325">8</text><line stroke="#E8E6DF" stroke-width="2" x1="710.0" x2="710.0" y1="32" y2="280"></line><text class="axis" text-anchor="middle" x="710.0" y="325">10</text><line stroke="#D8D5CD" stroke-width="2" x1="250" x2="710" y1="280" y2="280"></line><text fill="#2C3034" font-size="26" font-weight="950" text-anchor="end" x="232" y="60">MLP</text><line stroke="#D6D4CE" stroke-linecap="round" stroke-width="6" x1="250" x2="545.7" y1="52" y2="52"></line><circle cx="545.7" cy="52" fill="#18BFE0" r="13" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#2C3034" font-size="25" font-weight="950" x="565.7" y="61">6.429</text><text fill="#6C7175" font-size="26" font-weight="800" text-anchor="end" x="232" y="122">Ridge</text><line stroke="#D6D4CE" stroke-linecap="round" stroke-width="6" x1="250" x2="549.6" y1="114" y2="114"></line><circle cx="549.6" cy="114" fill="#496B9D" r="10" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#6C7175" font-size="25" font-weight="800" x="569.6" y="123">6.512</text><text fill="#6C7175" font-size="26" font-weight="800" text-anchor="end" x="232" y="184">Zero growth</text><line stroke="#D6D4CE" stroke-linecap="round" stroke-width="6" x1="250" x2="559.0" y1="176" y2="176"></line><circle cx="559.0" cy="176" fill="#7F8588" r="10" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#6C7175" font-size="25" font-weight="800" x="579.0" y="185">6.718</text><text fill="#6C7175" font-size="26" font-weight="800" text-anchor="end" x="232" y="246">Previous quarter</text><line stroke="#D6D4CE" stroke-linecap="round" stroke-width="6" x1="250" x2="685.0" y1="238" y2="238"></line><circle cx="685.0" cy="238" fill="#90969A" r="10" stroke="#FFFDF9" stroke-width="3"></circle><text fill="#6C7175" font-size="25" font-weight="800" x="705.0" y="247">9.456</text><text class="axislabel" text-anchor="middle" x="480.0" y="426">RMSE (percentage points) · lower is better</text></svg></div>
+</div>
+<div class="lower callout metrics-lower">“WINNER” DEPENDS ON WHAT KIND OF ERROR HURTS.</div>
+<div class="foot">Same 13,532 evaluation examples · three already-examined 2024 quarters</div>
+</div>
+</section><section class="page p6">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 06</div>
+<h1>RIDGE’S 454-BANK REVIEW LIST INCLUDED<br/><span class="cyan">112 OF THE QUARTER’S 454 LOWEST-GROWTH BANKS.</span></h1>
+<p class="deck">0% ties every bank. Ridge orders the queue by predicted growth, lowest first.</p>
+<div class="queue-layout"><div class="queue-mat"><div class="obj-kicker">FIRST 10 OF 454 · MARCH 2024 FORECASTS FOR JUNE</div><table class="queue"><thead><tr><th>RANK</th><th>BANK</th><th>PREDICTED GROWTH</th></tr></thead><tbody><tr><td>01</td><td>YOUNG AMERICANS BANK</td><td>-4.02%</td></tr><tr><td>02</td><td>PIONEER COMMERCIAL BANK</td><td>-3.32%</td></tr><tr><td>03</td><td>SUMITOMO MITSUI TR BK U SA</td><td>-2.83%</td></tr><tr><td>04</td><td>OLD GLORY BANK</td><td>-2.75%</td></tr><tr><td>05</td><td>TURTLE MOUNTAIN STATE BANK</td><td>-2.11%</td></tr><tr><td>06</td><td>COLUMBUS STATE BANK</td><td>-2.05%</td></tr><tr><td>07</td><td>FDS BANK</td><td>-2.03%</td></tr><tr><td>08</td><td>BOELUS STATE BANK</td><td>-1.96%</td></tr><tr><td>09</td><td>LEMONT NATIONAL BANK</td><td>-1.80%</td></tr><tr><td>10</td><td>CITIZENS NB OF CROSBYTON</td><td>-1.75%</td></tr></tbody></table></div>
+<div class="queue-receipts"><div class="obj-kicker">LOWEST-GROWTH BANKS CAPTURED<br/>SAME 454 REVIEW SLOTS</div><div class="benchmark">Random selection<strong>45.4 <small>expected</small></strong></div><div class="benchmark winner">Ridge<strong>112 <small>found</small></strong></div><div class="benchmark">Neural network<strong>109 <small>found</small></strong></div></div></div>
+<div class="foot rank-foot">4,536 eligible banks · March → June 2024. “Lowest-growth” = later in that quarter’s bottom 10% of deposit growth.<br/>It does not mean the bank was distressed. The 112 matches are across the full 454-bank queue, not just these ten rows.</div>
+</div>
+</section><section class="page p7">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 07</div>
+<h1>I THREW OUT <span class="cyan">4 INPUTS.</span><br/>KEPT ONLY DEPOSIT SIZE.</h1>
+<div class="wideviz bars"><svg aria-label="Zero-based bar chart comparing random selection, size-only Ridge, five-input Ridge and MLP" role="img" viewbox="0 0 1450 530"><line stroke="#E8E6DF" stroke-width="2" x1="360.0" x2="360.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="360.0" y="402">0</text><line stroke="#E8E6DF" stroke-width="2" x1="540.0" x2="540.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="540.0" y="402">5</text><line stroke="#E8E6DF" stroke-width="2" x1="720.0" x2="720.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="720.0" y="402">10</text><line stroke="#E8E6DF" stroke-width="2" x1="900.0" x2="900.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="900.0" y="402">15</text><line stroke="#E8E6DF" stroke-width="2" x1="1080.0" x2="1080.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="1080.0" y="402">20</text><line stroke="#E8E6DF" stroke-width="2" x1="1260.0" x2="1260.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="1260.0" y="402">25</text><text fill="#2C3034" font-size="27" font-weight="900" text-anchor="end" x="336" y="79">Random selection</text><rect fill="#91979A" height="32" opacity="1" rx="16" width="360.0" x="360" y="54"></rect><text fill="#2C3034" font-size="29" font-weight="950" x="738.0" y="79">10.0</text><text fill="#2C3034" font-size="27" font-weight="900" text-anchor="end" x="336" y="157">Size-only Ridge</text><rect fill="#496B9D" height="32" opacity=".68" rx="16" width="676.8" x="360" y="132"></rect><text fill="#2C3034" font-size="29" font-weight="950" x="1054.8" y="157">18.8</text><text fill="#2C3034" font-size="27" font-weight="900" text-anchor="end" x="336" y="235">Five-input Ridge</text><rect fill="#496B9D" height="32" opacity="1" rx="16" width="788.4" x="360" y="210"></rect><text fill="#2C3034" font-size="29" font-weight="950" x="1166.4" y="235">21.9</text><text fill="#2C3034" font-size="27" font-weight="900" text-anchor="end" x="336" y="313">MLP</text><rect fill="#0B7279" height="32" opacity="1" rx="16" width="784.8" x="360" y="288"></rect><text fill="#2C3034" font-size="29" font-weight="950" x="1162.8" y="313">21.8</text><circle cx="340" cy="447" fill="#91979A" r="8"></circle><text fill="#6C7175" font-size="21" font-weight="850" x="358" y="454">Random benchmark</text><circle cx="600" cy="447" fill="#496B9D" r="8"></circle><text fill="#6C7175" font-size="21" font-weight="850" x="618" y="454">Ridge</text><circle cx="860" cy="447" fill="#0B7279" r="8"></circle><text fill="#6C7175" font-size="21" font-weight="850" x="878" y="454">Neural net</text><text fill="#6C7175" font-size="20" font-weight="850" text-anchor="end" x="1230" y="454">axis starts at 0</text><text class="axislabel" text-anchor="middle" x="810.0" y="510">banks later in the lowest-growth 10% per 100 selected</text></svg></div>
+<div class="callout">ONE INPUT GOT SURPRISINGLY CLOSE.</div>
+<div class="foot">Equal-quarter averages across three reused 2024 quarters · size-only challenger added after examining 2024 · comparison is not a causal decomposition</div>
+</div>
+</section><section class="page p8">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 08</div>
+<h1>DEPOSIT DECLINES WERE <span class="cyan">MORE COMMON AFTER Q1</span> THAN Q4.</h1>
+<div class="season-meaning">
+<b>Q1: 45.5%</b> of training bank-quarters were followed by a deposit decline.
+      <b>Q4: 29.9%.</b>
+<span>That is how often declines happened, not “banks lost 45.5% of their deposits.”</span>
+</div>
+<div class="season-full">
+<div class="viztitle">SHARE OF BANKS WITH LOWER DEPOSITS NEXT QUARTER</div>
+<div class="season-svg-slot"><svg aria-label="Next-quarter deposit decline rates by quarter" role="img" viewbox="0 0 1000 460"><line stroke="#E8E6DF" stroke-width="2" x1="120" x2="920" y1="340.0" y2="340.0"></line><text class="axis" text-anchor="end" x="102" y="347.0">0%</text><line stroke="#E8E6DF" stroke-width="2" x1="120" x2="920" y1="240.0" y2="240.0"></line><text class="axis" text-anchor="end" x="102" y="247.0">20%</text><line stroke="#E8E6DF" stroke-width="2" x1="120" x2="920" y1="140.0" y2="140.0"></line><text class="axis" text-anchor="end" x="102" y="147.0">40%</text><line stroke="#E8E6DF" stroke-width="2" x1="120" x2="920" y1="40.0" y2="40.0"></line><text class="axis" text-anchor="end" x="102" y="47.0">60%</text><rect fill="#18BFE0" height="227.5" rx="8" width="116" x="162" y="112.5"></rect><text fill="#2C3034" font-size="28" font-weight="950" text-anchor="middle" x="220" y="96.5">45.5%</text><text fill="#2C3034" font-size="26" font-weight="900" text-anchor="middle" x="220" y="378">Q1</text><rect fill="#18BFE0" height="213.0" rx="8" width="116" x="372" y="127.0"></rect><text fill="#2C3034" font-size="28" font-weight="950" text-anchor="middle" x="430" y="111.0">42.6%</text><text fill="#2C3034" font-size="26" font-weight="900" text-anchor="middle" x="430" y="378">Q2</text><rect fill="#8C9194" height="169.0" rx="8" width="116" x="582" y="171.0"></rect><text fill="#2C3034" font-size="28" font-weight="950" text-anchor="middle" x="640" y="155.0">33.8%</text><text fill="#2C3034" font-size="26" font-weight="900" text-anchor="middle" x="640" y="378">Q3</text><rect fill="#8C9194" height="149.5" rx="8" width="116" x="792" y="190.5"></rect><text fill="#2C3034" font-size="28" font-weight="950" text-anchor="middle" x="850" y="174.5">29.9%</text><text fill="#2C3034" font-size="26" font-weight="900" text-anchor="middle" x="850" y="378">Q4</text><text class="axislabel" text-anchor="middle" x="520.0" y="430">share of training bank-quarters with a decline next quarter</text></svg></div>
+</div>
+<div class="callout">SO THE <span class="cyan">QUARTER ITSELF</span> MIGHT BE USEFUL.</div>
+<div class="foot">Training years only. This is a seasonal pattern in how often deposits declined next quarter.</div>
+</div>
+</section><section class="page p9">
+<div class="card">
+<div class="eyebrow">SIMPLE MODELS FIGHT BACK · 09</div>
+<h1>SO I LET THE FORECAST <span class="cyan">KNOW THE QUARTER.</span></h1>
+<p class="deck">Instead of predicting 0% for everybody, use the <b>typical historical growth for that calendar quarter.</b></p>
+<div class="season-rule">
+<div class="rule-flow">
+<div class="quarter-row">
+<span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span>
+</div>
+<div class="rule-arrow">↓</div>
+<div class="rule-box">TRAINING-PERIOD MEDIAN GROWTH<br/><small>for the matching quarter</small></div>
+<div class="rule-arrow">↓</div>
+<div class="rule-box forecast">NEXT-QUARTER FORECAST</div>
+</div>
+<div class="result-panel">
+<div class="viztitle">HISTORICAL MAE · LOWER IS BETTER</div>
+<div class="score-receipt big">
+<div class="score-row winner">
+<div class="score-name">Seasonal rule</div>
+<div class="score-num">3.500</div>
+</div>
+<div class="score-row">
+<div class="score-name">0% growth</div>
+<div class="score-num">3.601</div>
+</div>
+</div>
+<div class="mini-reaction">IT WON ON REUSED 2024 DATA.</div>
+</div>
+</div>
+<div class="next-test">
+<div class="next-kicker">NEXT UNSEEN QUARTER</div>
+<div class="next-question">DOES THE SEASONAL RULE <span class="cyan">BEAT 0% AGAIN?</span></div>
+<div class="next-rule">Same banks. Same quarter. <b>Lower MAE wins.</b></div>
+</div>
+<div class="foot">Caveat: I developed the seasonal rule after examining 2024. So this is a follow-up result that earns a fresh test, not a victory lap.</div>
+</div>
+</section></body>
+</html>

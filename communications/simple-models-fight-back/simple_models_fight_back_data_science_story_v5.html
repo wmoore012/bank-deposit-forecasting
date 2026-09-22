@@ -415,6 +415,9 @@ svg { display:block; width:100%; height:auto; }
 .p1 .callout.lower {margin-top:20px;}
 .p9 h1 {font-size:52px;}
 .p9 .forecast-pair p {font-size:22px;}
+.p7 .size-why {font-size:25px;line-height:1.25;margin-bottom:10px;}
+.p7 .bars svg {height:420px;}
+.p7 .callout {font-size:30px;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -503,8 +506,9 @@ svg { display:block; width:100%; height:auto; }
 <div class="card">
 <div class="eyebrow">SIMPLE MODELS FIGHT BACK · 07</div>
 <h1>I THREW OUT <span class="cyan">4 INPUTS.</span><br/>KEPT ONLY DEPOSIT SIZE.</h1>
+<p class="deck size-why"><b>How much ranking performance survives with just one clue?</b><br/>Deposit size = customer deposit dollars. I kept the same linear model and removed the other four inputs.</p>
 <div class="wideviz bars"><svg aria-label="Zero-based bar chart comparing random selection, size-only Ridge, five-input Ridge and MLP" role="img" viewbox="0 0 1450 530"><line stroke="#E8E6DF" stroke-width="2" x1="360.0" x2="360.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="360.0" y="402">0</text><line stroke="#E8E6DF" stroke-width="2" x1="540.0" x2="540.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="540.0" y="402">5</text><line stroke="#E8E6DF" stroke-width="2" x1="720.0" x2="720.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="720.0" y="402">10</text><line stroke="#E8E6DF" stroke-width="2" x1="900.0" x2="900.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="900.0" y="402">15</text><line stroke="#E8E6DF" stroke-width="2" x1="1080.0" x2="1080.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="1080.0" y="402">20</text><line stroke="#E8E6DF" stroke-width="2" x1="1260.0" x2="1260.0" y1="42" y2="360"></line><text class="axis" text-anchor="middle" x="1260.0" y="402">25</text><text fill="#2C3034" font-size="27" font-weight="900" text-anchor="end" x="336" y="79">Random selection</text><rect fill="#91979A" height="32" opacity="1" rx="16" width="360.0" x="360" y="54"></rect><text fill="#2C3034" font-size="29" font-weight="950" x="738.0" y="79">10.0</text><text fill="#2C3034" font-size="27" font-weight="900" text-anchor="end" x="336" y="157">Size-only Ridge</text><rect fill="#496B9D" height="32" opacity=".68" rx="16" width="676.8" x="360" y="132"></rect><text fill="#2C3034" font-size="29" font-weight="950" x="1054.8" y="157">18.8</text><text fill="#2C3034" font-size="27" font-weight="900" text-anchor="end" x="336" y="235">Five-input Ridge</text><rect fill="#496B9D" height="32" opacity="1" rx="16" width="788.4" x="360" y="210"></rect><text fill="#2C3034" font-size="29" font-weight="950" x="1166.4" y="235">21.9</text><text fill="#2C3034" font-size="27" font-weight="900" text-anchor="end" x="336" y="313">MLP</text><rect fill="#0B7279" height="32" opacity="1" rx="16" width="784.8" x="360" y="288"></rect><text fill="#2C3034" font-size="29" font-weight="950" x="1162.8" y="313">21.8</text><circle cx="340" cy="447" fill="#91979A" r="8"></circle><text fill="#6C7175" font-size="21" font-weight="850" x="358" y="454">Random benchmark</text><circle cx="600" cy="447" fill="#496B9D" r="8"></circle><text fill="#6C7175" font-size="21" font-weight="850" x="618" y="454">Ridge</text><circle cx="860" cy="447" fill="#0B7279" r="8"></circle><text fill="#6C7175" font-size="21" font-weight="850" x="878" y="454">Neural net</text><text fill="#6C7175" font-size="20" font-weight="850" text-anchor="end" x="1230" y="454">axis starts at 0</text><text class="axislabel" text-anchor="middle" x="810.0" y="510">banks later in the lowest-growth 10% per 100 selected</text></svg></div>
-<div class="callout">ONE INPUT GOT SURPRISINGLY CLOSE.</div>
+<div class="callout">SIZE ALONE: 18.8 FOUND PER 100 REVIEWED.<br/><span class="cyan">ALL FIVE INPUTS: 21.9. A GAP OF 3.1.</span></div>
 <div class="foot">Equal-quarter averages across three reused 2024 quarters · size-only challenger added after examining 2024 · comparison is not a causal decomposition</div>
 </div>
 </section><section class="page p8">

@@ -1,0 +1,108 @@
+{
+  "question": "At 10% review capacity, does eight-quarter financial history improve selection for low next-quarter deposit growth?",
+  "status": "Exploratory retrospective comparison; 2024 outcomes already inspected.",
+  "population_counts": {
+    "original": 13532,
+    "expanded": 13618,
+    "original_complete": 13490,
+    "expanded_complete": 13576
+  },
+  "features": [
+    "log_deposits",
+    "cash_ratio",
+    "loan_ratio",
+    "equity_ratio",
+    "prior_growth"
+  ],
+  "flatten_order": "oldest quarter first, feature order within quarter",
+  "seed_primary": 42,
+  "stochastic_seeds": [
+    42,
+    7,
+    99
+  ],
+  "capacity": 0.1,
+  "tie_break": "CERT ascending",
+  "pca": {
+    "variance": 0.9,
+    "solver": "full"
+  },
+  "isolation_forest": {
+    "trees": 300,
+    "max_samples": 256,
+    "contamination": "auto",
+    "score": "negative score_samples"
+  },
+  "autoencoder": {
+    "dimensions": [
+      40,
+      16,
+      4,
+      16,
+      40
+    ],
+    "without_size_dimensions": [
+      32,
+      16,
+      4,
+      16,
+      32
+    ],
+    "hidden_activation": "relu",
+    "bottleneck_output": "linear",
+    "loss": "standardized MSE",
+    "optimizer": "Adam",
+    "learning_rate": 0.001,
+    "batch": 256,
+    "max_epochs": 100,
+    "patience": 10,
+    "restore_best": true
+  },
+  "rule_origin": "post_hoc_failed_bank_exploration",
+  "split_rows": {
+    "training": 169298,
+    "validation": 13866,
+    "evaluation": 13576
+  },
+  "training_dates": [
+    "2015-03-31",
+    "2015-06-30",
+    "2015-09-30",
+    "2015-12-31",
+    "2016-03-31",
+    "2016-06-30",
+    "2016-09-30",
+    "2016-12-31",
+    "2017-03-31",
+    "2017-06-30",
+    "2017-09-30",
+    "2017-12-31",
+    "2018-03-31",
+    "2018-06-30",
+    "2018-09-30",
+    "2018-12-31",
+    "2019-03-31",
+    "2019-06-30",
+    "2019-09-30",
+    "2019-12-31",
+    "2020-03-31",
+    "2020-06-30",
+    "2020-09-30",
+    "2020-12-31",
+    "2021-03-31",
+    "2021-06-30",
+    "2021-09-30",
+    "2021-12-31",
+    "2022-03-31",
+    "2022-06-30",
+    "2022-09-30"
+  ],
+  "source_hashes": {
+    "data/fdic_financials_2013_2024.csv": "ed8b1a663c1a9c417a71069f7c3a947ca41e670f2123d0c54ef868443ce3b0d8",
+    "data/fdic_reporting_2010_2024.csv": "4fd21eac7a0b728d2ca26a49e3e74793701fc6fff7593ba6b8ecdc31d840e673",
+    "growth_outputs/frozen_forecasts/expanded_predictions.csv": "4d0e6e594731f29d6f0e2d36ef47501954fb140f2d389c7bd94b1c009ab71c9b",
+    "review_history.py": "248e02d1fab2cdda630a1211ee93df9a9b443f7a9adcaad06518d7a91e06ffe7",
+    "experiments/review_history/run.py": "28e5563676e6f67279dad0079024541b59339165109d1498b0227bbba238d686",
+    "uv.lock": "28c8f3952d36ed5bce15933a86aca447738fa93a6498178446ae7c4642299ba5"
+  }
+}

@@ -10,6 +10,10 @@ import deposit_experiment as core
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Configure the test process before any test loads a fitted TensorFlow model.
+core.tf.config.threading.set_inter_op_parallelism_threads(2)
+core.tf.config.threading.set_intra_op_parallelism_threads(2)
+
 
 class SharedExperimentTests(unittest.TestCase):
     @classmethod
@@ -81,8 +85,6 @@ class SharedExperimentTests(unittest.TestCase):
 
     def test_single_row_final_training_batch(self):
         # 513 rows leaves one example after the first 512-row batch.
-        core.tf.config.threading.set_inter_op_parallelism_threads(2)
-        core.tf.config.threading.set_intra_op_parallelism_threads(2)
         core.tf.config.experimental.enable_op_determinism()
         x = np.zeros((513, 5), dtype='float32')
         y = np.zeros(513, dtype='float32')

@@ -2803,92 +2803,20 @@ takeaway(
     'Three reused quarters cannot establish which model would lead later.',
 )
 ''')
-section('Okay, but is an unusual report a different question?', '''
-**Yes, it is a useful next experiment.** The forecast asks which bank may have weak
-growth next quarter. An anomaly score asks whose *observed* report looks unusual
-relative to its own past or comparable banks. Those are different review questions.
+section('We can review 10% of the banks. Would looking at their recent history help us choose?', """
+**The history methods produced different lists. Ridge still captured more low-growth outcomes.**
+Study 2 compares raw equity/assets, a size-only rule, PCA, Isolation Forest, and a dense autoencoder
+with the frozen forecasts. Each matched-population list selects 10% per quarter.
 
-An unusual balance can reflect a merger, a reporting change, or genuine funding
-pressure. A useful review queue must surface relevant cases at a capacity analysts
-can handle. This notebook has not measured anomaly-detection precision or the cost
-of false alerts. Future-quarter balances cannot enter a score used to decide what
-to review today.
-''',r'''
-# EXEMPLAR: analytical-question
-question_card(
-    title='So would anomaly detection change who we review?',
-    theme=theme,
-    body=(
-        'Possibly. First decide whether the job is to anticipate a future '
-        'decline or to investigate an unusual report already in hand.'
-    ),
-    kicker='Next decision',
-    chip_text='QUESTION',
-)
+Eight quarters of five finite inputs require nine underlying deposit reports. The expanded comparison
+keeps input-eligible banks even when future balances are unknown. The outcome comparison uses only
+common-history rows with observed next-quarter growth. The counts below come from the eligibility audit.
 
-# %% NOTEBOOK CELL
-# EXEMPLAR: decision-ledger
-# Each row names the evidence available when an analyst makes the decision.
-review_questions = pd.DataFrame([
-    {
-        'Question': 'Who may have weak growth next quarter?',
-        'Method': 'Forecast ranking',
-        'Evidence here': 'Tested on three 2024 quarters',
-        'Next check': 'Repeat on a later untouched period',
-    },
-    {
-        'Question': 'Whose report looks unusual today?',
-        'Method': 'Anomaly detection',
-        'Evidence here': 'Not tested',
-        'Next check': 'Review top-ranked cases and false alerts',
-    },
-    {
-        'Question': 'Does this bank need follow-up?',
-        'Method': 'Human source review',
-        'Evidence here': 'Reporting changes can mimic events',
-        'Next check': 'Check filings, entity changes, and context',
-    },
-])
-table(
-    review_questions,
-    'Three questions, three different kinds of evidence',
-    wrap_columns={
-        'Question': 230,
-        'Method': 150,
-        'Evidence here': 190,
-        'Next check': 230,
-    },
-)
-
-# %% NOTEBOOK CELL
-# EXEMPLAR: counterintuitive-boundary
-wm_counterintuitive_card(
-    title='An unusual report starts an investigation',
-    theme=theme,
-    why_misread=(
-        'A sudden deposit change can look like a warning signal.'
-    ),
-    ordinary_process=(
-        'Mergers, name changes, and reporting differences can also make a '
-        'bank look unusual. The validation audit found a same-certificate '
-        'name change beside an extreme balance jump.'
-    ),
-    conclusion_boundary=(
-        'Test an anomaly score on information available at the review date. '
-        'At a fixed review capacity, measure useful cases and false alerts '
-        'against analyst-reviewed records before recommending it.'
-    ),
-    kicker='Interpretation check',
-    chip_text='CHECK',
-)
-takeaway(
-    'Anomaly detection deserves a separate trial',
-    'The current ranking found weak-growth banks better than chance in three '
-    'historical quarters. That does not tell us whether an anomaly score would '
-    'send analysts to better cases. Evaluate it with the same review capacity '
-    'and a clear definition of a useful review.',
-)
-''')
+This is an exploratory comparison on three already-inspected 2024 quarters. It measures the deposit-growth
+review task; operational usefulness and failure detection still need separate evidence.
+See [Study 2](FDIC_Review_History.ipynb) for the visible model code, disagreement examples, all seeds,
+and the check without deposit size.
+""", (ROOT / 'notebooks/source/review_history_lesson.py').read_text())
 section('11 · Okay. So what did we actually learn?', '''
 **The small neural network did not establish a dependable forecasting advantage on the reused 2024
 holdout.** A zero-growth forecast had the lowest MAE at **3.60 percentage points**. The MLP scored **3.63
@@ -2905,8 +2833,8 @@ The evidence supports a simple operating choice. Keep zero growth as the accurac
 as the transparent feature model, and treat the MLP as an unproven research candidate. Audit large misses
 for mergers and institutional changes, then evaluate all three on a later untouched period.
 
-**Should we try something else?** Yes. Anomaly detection may help prioritize reports
-that look unusual *now*; it has not been tested here. The masterclass separately evaluates TimesFM using
+**Does unusual history help with this review task?** Study 2 tests that question. Its anomaly
+methods select different banks, but none captures more low-growth outcomes than Ridge on the matched historical population. The masterclass separately evaluates TimesFM using
 bank histories after this core conclusion. That extension does not change the measured
 MAE, RMSE, or review precision of the four evaluated methods.
 
@@ -3657,7 +3585,7 @@ wm_counterintuitive_card(
     ]
 
 
-SECTION_SUMMARIES = {'1 ·': 'We chose 2013–2024. First learn the column names, then see why older reports stay in an audit and how we handle missing values.', '2 ·': 'A forecast needs a real next-quarter answer. We keep comparable domestic-bank reports with neighboring quarters and positive balances, and count every exclusion.', '3 ·': 'We check when deposit declines happened and whether the same quarter of the year tends to repeat a pattern. Only training-period outcomes are used.', '4 ·': 'Five inputs describe bank size, cash, loans, equity, and recent deposit growth. Their distributions show what the model receives before any scaling.', '5 ·': 'The first dollar-based score mostly rewarded choosing large banks. A size-only rule nearly matched the neural network, motivating a proportional-growth target.', '6 ·': 'We predict log growth so very small starting balances do not create enormous training targets. The same bank appears in two representations; predictions are converted back to percentage growth for scoring.', '7 ·': 'Training comes first, validation comes later, and 2024 comes last. A timeline shows the gaps that keep future outcomes out of earlier training.', '8 ·': 'A network learns by adjusting weights. One small calculation shows how an update reduces a mistake before we examine the full network.', '9 ·': 'We fit four forecasts and use validation to choose settings. The learning curve shows when more training stops helping.', '10 ·': 'Zero growth has the lowest average absolute error; the small MLP has the lowest RMSE. We compare both scores because large mistakes receive extra weight in RMSE.', '11 ·': 'The models make larger mistakes on the weakest-growth banks. These after-the-fact groups explain errors; they cannot prove advance warning.', '12 ·': 'With room to review only 10% of banks, Ridge leads in March and June and the MLP leads in September. Both find weak-growth banks more often than the roughly 10% random reference.', '13 ·': 'Anomaly detection could flag unusual reports for review. It answers a different question from forecasting, and this project has not tested its review-list quality.', '14 ·': 'The simple baseline remains hard to beat. The MLP improves RMSE but does not establish dependable added value; review-list usefulness needs its own evidence.', 'Bonus · Can': 'We tested TimesFM and Chronos on every evaluation row. Neither zero-shot approach beat the best core baselines; one very large TimesFM miss dominates its RMSE.', 'Bonus · Does': 'We fine-tuned both forecasting heads using earlier data and selected checkpoints with validation. Neither adapted model beat the core baselines on the reused 2024 evaluation.', 'Deeper check ·': 'We kept 2010–2012 out of the main comparison because reporting definitions still need a historical mapping. Here are the counts and reporting-form checks behind that choice.', 'Deeper lesson · Does': 'Changing starting weights changes the validation score. Three fixed seeds show that sensitivity without choosing a winner from 2024.', 'Deeper lesson · How': 'We resample whole banks to see how much the MLP–Ridge difference varies. The interval crosses zero, so the small observed advantage is uncertain.', 'Deeper lesson · Can': 'A blank, a stored zero, and a nonzero deposit value mean different things. We keep these uninsured-deposit columns out until their reporting definitions are verified.', 'Appendix · Rebuild': 'This reproduces the original dollar-capture experiment. The network adds only 0.27 percentage points over selecting banks by size.', 'Appendix · Keep': 'The original experiment preserves useful lessons about probabilities, review capacity, and dollar outcomes. Use these as deeper questions after finishing the core comparison.'}
+SECTION_SUMMARIES = {'1 ·': 'We chose 2013–2024. First learn the column names, then see why older reports stay in an audit and how we handle missing values.', '2 ·': 'A forecast needs a real next-quarter answer. We keep comparable domestic-bank reports with neighboring quarters and positive balances, and count every exclusion.', '3 ·': 'We check when deposit declines happened and whether the same quarter of the year tends to repeat a pattern. Only training-period outcomes are used.', '4 ·': 'Five inputs describe bank size, cash, loans, equity, and recent deposit growth. Their distributions show what the model receives before any scaling.', '5 ·': 'The first dollar-based score mostly rewarded choosing large banks. A size-only rule nearly matched the neural network, motivating a proportional-growth target.', '6 ·': 'We predict log growth so very small starting balances do not create enormous training targets. The same bank appears in two representations; predictions are converted back to percentage growth for scoring.', '7 ·': 'Training comes first, validation comes later, and 2024 comes last. A timeline shows the gaps that keep future outcomes out of earlier training.', '8 ·': 'A network learns by adjusting weights. One small calculation shows how an update reduces a mistake before we examine the full network.', '9 ·': 'We fit four forecasts and use validation to choose settings. The learning curve shows when more training stops helping.', '10 ·': 'Zero growth has the lowest average absolute error; the small MLP has the lowest RMSE. We compare both scores because large mistakes receive extra weight in RMSE.', '11 ·': 'The models make larger mistakes on the weakest-growth banks. These after-the-fact groups explain errors; they cannot prove advance warning.', '12 ·': 'With room to review only 10% of banks, Ridge leads in March and June and the MLP leads in September. Both find weak-growth banks more often than the roughly 10% random reference.', '13 ·': 'Eight-quarter histories select different banks, but Ridge captures more low-growth outcomes on the matched historical population. Study 2 keeps every declared model and seed.', '14 ·': 'The simple baseline remains hard to beat. The MLP improves RMSE but does not establish dependable added value; review-list usefulness needs its own evidence.', 'Bonus · Can': 'We tested TimesFM and Chronos on every evaluation row. Neither zero-shot approach beat the best core baselines; one very large TimesFM miss dominates its RMSE.', 'Bonus · Does': 'We fine-tuned both forecasting heads using earlier data and selected checkpoints with validation. Neither adapted model beat the core baselines on the reused 2024 evaluation.', 'Deeper check ·': 'We kept 2010–2012 out of the main comparison because reporting definitions still need a historical mapping. Here are the counts and reporting-form checks behind that choice.', 'Deeper lesson · Does': 'Changing starting weights changes the validation score. Three fixed seeds show that sensitivity without choosing a winner from 2024.', 'Deeper lesson · How': 'We resample whole banks to see how much the MLP–Ridge difference varies. The interval crosses zero, so the small observed advantage is uncertain.', 'Deeper lesson · Can': 'A blank, a stored zero, and a nonzero deposit value mean different things. We keep these uninsured-deposit columns out until their reporting definitions are verified.', 'Appendix · Rebuild': 'This reproduces the original dollar-capture experiment. The network adds only 0.27 percentage points over selecting banks by size.', 'Appendix · Keep': 'The original experiment preserves useful lessons about probabilities, review capacity, and dollar outcomes. Use these as deeper questions after finishing the core comparison.'}
 PROJECT_SUMMARY = '**Project in one minute.** Can a bank’s reports help us predict next-quarter deposit growth and choose which banks to review? We train on 214,425 bank-quarter records and evaluate 13,532 later records. Zero growth wins average absolute error; the small neural network wins RMSE, which gives large misses extra weight. Ridge and the neural network identify weak-growth banks more often than random selection in three historical quarters. This is a research prototype, with a reused 2024 holdout and no measured savings.\n\n**What you will see:** data definitions and cleaning decisions → time patterns → five inputs and a growth target → time-separated training → forecast errors → a capacity-limited review list. Pretrained models, fine-tuning, and deeper audits follow the main conclusion.\n\n**Tools:** Python, pandas, scikit-learn, TensorFlow, Plotly, Jupyter, and uv; PyTorch and MLX for the foundation-model extensions.'
 
 SECTION_SUMMARIES.update({

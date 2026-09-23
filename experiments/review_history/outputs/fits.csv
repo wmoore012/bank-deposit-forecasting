@@ -1,0 +1,15 @@
+method,components,training_variance,seconds,seed,epochs,best_epoch
+PCA,9.0,0.9060605752183197,0.4696047499892302,,,
+Isolation Forest 42,,,1.0248229579883628,42.0,,
+Isolation Forest 7,,,0.8828571659978479,7.0,,
+Isolation Forest 99,,,0.9251966250012629,99.0,,
+Autoencoder 42,,,41.40556166699389,42.0,42.0,32.0
+Autoencoder 7,,,53.26282245799666,7.0,63.0,53.0
+Autoencoder 99,,,14.230364791001193,99.0,15.0,5.0
+PCA without size,9.0,0.9118298429731292,0.28150529201957397,,,
+Isolation Forest 42 without size,,,1.1668535410135519,42.0,,
+Isolation Forest 7 without size,,,1.1719086249941029,7.0,,
+Isolation Forest 99 without size,,,0.8999712920049205,99.0,,
+Autoencoder 42 without size,,,30.032294415985234,42.0,36.0,26.0
+Autoencoder 7 without size,,,33.526642374985386,7.0,44.0,34.0
+Autoencoder 99 without size,,,37.818055540992646,99.0,46.0,36.0

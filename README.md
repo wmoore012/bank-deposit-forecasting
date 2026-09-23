@@ -203,12 +203,27 @@ Build the offline HTML and ZIP deliverables after execution and tests:
 ` .venv/bin/python package_project.py`. Both bundles contain both executed editions,
 the shared module, all three training-window seeds, and the frozen-model receipts.
 
+## Study 2: does eight-quarter history improve the review list?
+
+The [follow-up notebook](FDIC_Review_History.ipynb) compares the frozen forecasts
+with raw equity/assets, a size-only control, PCA, Isolation Forest, and a dense
+autoencoder. Every matched list has the same 10% capacity. Ridge captured 296
+low-growth outcomes in 1,351 selections; the primary autoencoder captured 274.
+All seeds and the version without deposit size remain in the
+[complete study record](experiments/review_history/README.md).
+
+After the shared environment setup, reproduce the benchmark with
+`.venv/bin/python experiments/review_history/run.py`. Rebuild its notebook with
+`.venv/bin/python build_review_history.py`, then execute it with
+`.venv/bin/python execute_masterclass.py FDIC_Review_History.ipynb`. These results
+are exploratory comparisons on the same already-inspected 2024 outcomes.
+
 ## Reading the charts on GitHub
 
 The saved notebooks include static chart images because GitHub does not run notebook JavaScript. The downloadable HTML keeps the interactive charts. Re-executing a notebook replaces its outputs; before publishing, regenerate the static previews with this optional command (Chrome is required):
 
 ```sh
-uv run --no-project --with nbformat --with plotly==7.1.0 --with kaleido==1.4.0 python export_static_notebooks.py FDIC_Deep_Learning_Masterclass.ipynb FDIC_Deep_Learning_Submission.ipynb
+uv run --no-project --with nbformat --with plotly==7.1.0 --with kaleido==1.4.0 python export_static_notebooks.py FDIC_Deep_Learning_Masterclass.ipynb FDIC_Deep_Learning_Submission.ipynb FDIC_Review_History.ipynb
 ```
 
 This publication step changes saved display outputs only, not model fitting or scores.

@@ -219,8 +219,9 @@ class ExperimentTests(unittest.TestCase):
         self.assertIn('timesfm_comparison',source)
         self.assertIn('The RMSE improvement changes large-error scoring',source)
         anomaly_lesson = next(c.source for c in nb.cells if c.cell_type == 'markdown' and c.source.startswith('## 13 '))
-        self.assertIn('anomaly', anomaly_lesson.lower())
-        self.assertRegex(anomaly_lesson, r'(?is)(still needs evaluation|has not (measured|tested))')
+        self.assertIn('history', anomaly_lesson.lower())
+        self.assertIn('already-inspected', anomaly_lesson)
+        self.assertIn('operational usefulness', anomaly_lesson.lower())
         self.assertIn('A future outcome must never determine who gets scored today',source)
         self.assertNotIn('TimesFM,', (out/'historical_scores.csv').read_text())
 

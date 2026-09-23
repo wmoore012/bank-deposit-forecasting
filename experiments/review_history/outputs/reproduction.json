@@ -1,0 +1,12 @@
+{
+  "score_max_abs_difference": 0.0,
+  "fresh_python": "3.12",
+  "study2_models": "All 14 learned models, both representations and all declared seeds",
+  "study1_editions": "Both complete",
+  "status": "Numerical reproduction passed",
+  "comparison_tolerances": {
+    "rtol": 1e-06,
+    "atol": 1e-08
+  },
+  "browser_acceptance": "Pending: automatic browser approval review reported a service usage limit."
+}

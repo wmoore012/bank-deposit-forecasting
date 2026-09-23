@@ -1,5 +1,57 @@
 # Validation
 
+## Study 2 numerical verification, September 23, 2026
+
+**Ridge remains the strongest measured review list in this comparison.** On the
+13,490 common-history rows with observed outcomes, each method selected 1,351
+bank-quarter cases across three quarters. Ridge captured 296 realized lowest-growth
+cases, MLP 293, primary autoencoder 274, primary Isolation Forest 237, PCA 236,
+raw equity/assets 170, and size alone 86. Every stochastic seed (42, 7, 99) and
+both feature representations remain in the record; none exceeded Ridge.
+
+The expanded comparison has 13,576 finite eight-quarter histories out of 13,618
+input-eligible rows. The original comparison has 13,490 out of 13,532 observed
+rows. Nine source deposit reports are necessary but do not make undefined growth
+valid. Integro's zero preceding balance stays excluded. Original selections stay
+in their separate audit, including five Ridge and seven MLP selections without
+anomaly scores. The 86 unknown future balances remain unknown.
+
+Training-only standardization uses 169,298 complete histories across 31 endpoints.
+Both deterministic PCA representations select nine components for 90% training
+variance. The dense autoencoder uses fixed quarter-feature positions, without
+recurrence or attention. Events do not enter fitting or evaluation. The official
+register and separate coverage ledger preserve verified later events without
+assigning a cause to an unavailable report.
+
+A newly extracted allowlisted package installed with locked Python 3.12 dependencies
+from the local cache and executed all three notebooks. Independent Study 2
+reproduction matched all 14 learned models' saved scores exactly (maximum absolute
+difference 0), including every seed and the representation without deposit size.
+Selections, overlaps, outcome capture, coverage, and reconstruction shares agreed.
+Both Study 1 editions reproduced predictions, splits, original scores/rankings,
+and training-window results within rtol 1e-6 / atol 1e-8; elapsed fit time is not a
+statistical result. Presentation-only reruns use these verified saved outputs.
+
+The regression suite contains 47 passing checks. It covers observed/input population
+separation, consecutive histories, future-outcome independence, model reloads,
+training-only scaling, PCA dimension choice, review capacities and certificate ties,
+matched outcome calculations, reconstruction shares, visible notebook implementation,
+score/model fingerprints, and publication image dimensions. Earlier dated test totals
+below describe earlier versions.
+
+Static figure inspection found and corrected crowded history labels, cramped seed
+labels, transparent chart backgrounds, and exported figures defaulting to the wrong
+height. Current PNGs preserve the specified dimensions at 2x resolution. The shared
+HTML exporter removes external script dependencies. Browser inspection of the final
+Study 2 HTML and repaired GitHub previews remains pending because automatic browser
+approval review failed with a service usage-limit error. Static artifact inspection
+and successful execution do not close that browser acceptance check. Study 2 stays
+local until that remaining check is completed.
+
+This is exploratory evidence from three previously inspected 2024 quarters. It does
+not reconstruct report vintages or historical publication timing, demonstrate
+operational savings, establish general anomaly quality, or evaluate failure prediction.
+
 ## Current Study 1 release, September 22, 2026
 
 Both notebook editions executed fully in separate Python 3.12 CPU kernels. A fresh

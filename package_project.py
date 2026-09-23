@@ -8,7 +8,9 @@ from nbconvert import HTMLExporter
 
 ROOT = Path(__file__).resolve().parent
 COMMON = [
-    'README.md', 'VALIDATION.md', 'MASTERCLASS_README.md', 'PROFESSOR_README.md',
+    'README.md', 'VALIDATION.md', 'export_static_notebooks.py', 'review_history.py', 'build_review_history.py',
+    'FDIC_Review_History.ipynb', 'experiments/review_history/run.py',
+    'experiments/review_history/README.md', 'sources/failure_coverage/audit.py', 'sources/failure_coverage/README.md', 'MASTERCLASS_README.md', 'PROFESSOR_README.md',
     'pyproject.toml', 'uv.lock', 'deposit_experiment.py', 'freeze_forecasts.py', 'build_masterclass.py',
     'notebook_lessons.py', 'concrete_teaching.py', 'export_story.py',
     'benchmark_timesfm.py', 'benchmark_chronos.py', 'finetune_foundation.py',
@@ -26,6 +28,9 @@ COMMON = [
 ]
 # Patterns are intentionally narrow: authoring notes, archives and QA are not inputs.
 PATTERNS = [
+    'experiments/review_history/outputs/*.csv', 'experiments/review_history/outputs/*.json',
+    'experiments/review_history/outputs/models/*.joblib', 'experiments/review_history/outputs/models/*.keras',
+    'sources/failure_coverage/*.csv', 'sources/failure_coverage/*.json',
     'data/*.csv', 'vendor/*.whl', 'vendor/*.patch', 'sources/*.md',
     'sources/*.json', 'sources/*.csv', 'sources/*.yaml',
     'notebooks/source/*.py', 'tests/test_*.py', 'growth_outputs/*.csv',
@@ -68,8 +73,8 @@ def build_packages(root, output):
     output.mkdir(parents=True, exist_ok=True)
     paths = selected_files(root)
     rendered = {}
-    for edition in ['Masterclass', 'Submission']:
-        notebook = root / f'FDIC_Deep_Learning_{edition}.ipynb'
+    for filename in ['FDIC_Deep_Learning_Masterclass.ipynb', 'FDIC_Deep_Learning_Submission.ipynb', 'FDIC_Review_History.ipynb']:
+        notebook = root / filename
         nb = nbformat.read(notebook, as_version=4)
         code = [c for c in nb.cells if c.cell_type == 'code']
         if any(c.execution_count is None or any(o.output_type == 'error' for o in c.outputs) for c in code):

@@ -52,9 +52,9 @@ def add_static_fallbacks(path):
                 continue
             html = readable_card_spacing(html)
             output.data["text/html"] = html
-            if 'data-static-version="3"' in html:
+            if 'data-static-version="4"' in html:
                 continue
-            if 'data-static-version="2"' in html:
+            if 'host.innerHTML=' in html and 'data-static-version=' in html:
                 html, _ = json.JSONDecoder().raw_decode(html.split('host.innerHTML=', 1)[1])
             # Upgrade the first publication format without nesting its old image.
             html = re.sub(r'<img\b[^>]*data-static-fallback="true"[^>]*>', "", html)
@@ -70,14 +70,15 @@ def add_static_fallbacks(path):
         images = [Path(directory) / f"{i}.png" for i in range(len(pending))]
         if images:
             pio.write_images(
-                fig=[entry[2] for entry in pending], file=images, format="png", scale=2
+                fig=[entry[2] for entry in pending], file=images, format="png", width=[900] * len(pending),
+                height=[int(entry[2].layout.height or 500) for entry in pending], scale=2
             )
         for (output, chart_id, figure, html), image in zip(pending, images):
             encoded = base64.b64encode(image.read_bytes()).decode()
             host_id = chart_id + "-preview"
             title = re.sub(r"<[^>]+>", " ", figure.layout.title.text or "Chart")
             fallback = (
-                f'<div id="{host_id}" data-static-version="3">'
+                f'<div id="{host_id}" data-static-version="4">'
                 f'<img alt="{escape(title, quote=True)}" width="900" '
                 f'src="data:image/png;base64,{encoded}" '
                 'style="max-width:100%;height:auto"/></div>'

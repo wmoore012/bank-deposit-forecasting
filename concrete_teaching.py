@@ -49,9 +49,11 @@ Groups defined by what happened next help explain mistakes afterward. They could
 Now sort banks from lowest to highest predicted growth and select the first 10%. After the next quarter, count how many selected banks actually belong to that quarter's lowest-growth 10%. **Precision** is that count divided by the number selected. **Random selection** answers how many we would expect with no informative ordering. These are two different baseline jobs.
 
 In March, Ridge selected 454 banks and found 112 of the realized lowest-growth group; the network found 109. The random expectation is 45.44. Lower growth describes a relative deposit outcome. A person must investigate its reason.''',
-'13 ·': '''**Imagine a bank reports an unusual cash ratio. Is that enough to predict next quarter's deposit change?** An anomaly detector can identify a report that differs from familiar reports. Its usefulness for finding future low-growth outcomes still needs evaluation.
+'13 ·': '''**We can review 10% of the banks. Would looking at their recent history help us choose?** The history methods produced different lists. Ridge still captured more low-growth outcomes on the matched historical population.
 
-A later experiment could compare an anomaly-based list with the forecast-based list at the same capacity and on the same available banks. This project has not measured that anomaly detector's performance. An unusual report provides a reason to inspect the source and context.''',
+Study 2 compares raw equity/assets, a size-only rule, PCA, Isolation Forest, and a dense autoencoder with the frozen forecasts. Eight quarters of five finite inputs require nine source deposit reports. The table below uses the audited common-history population; the original Study 1 lists remain unchanged.
+
+These three already-inspected 2024 quarters support an exploratory comparison of the deposit-growth review task. They do not establish operational usefulness or failure detection. [Study 2](FDIC_Review_History.ipynb) contains visible model code, three disagreement examples, every seed, and the check without deposit size.''',
 '14 ·': '''**The original network reduced RMSE while zero growth retained lower MAE.** That tells us the network's extra complexity helped one error criterion in this historical sample. It did not establish a clear advantage across the jobs we tested.
 
 **Did sorting help us choose cases to examine?** Ridge and the MLP placed more eventual low-growth outcomes in the assumed 10% list than random selection in each of three quarters. The follow-up comparisons now ask how much size alone explains, how uncertainty affects the difference, and whether simple seasonal forecasts change the error comparison.''',

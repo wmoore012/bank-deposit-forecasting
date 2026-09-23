@@ -1,9 +1,11 @@
 # Simple Models Fight Back
 
 The current carousel is `simple_models_fight_back_data_science_story_v6.pdf`,
-a 13-page edition. It adds the approved anomaly-detection setup, a vector diagram
-comparing information sets at equal review capacity, and the measured outcome
-comparison after the deposit-size page. The calendar-rule ending is preserved.
+a 13-page edition. It adds the approved anomaly-detection setup, explicit forecast and anomaly selection rules
+at equal review capacity, and the measured outcome
+comparison after the deposit-size page. The calendar-rule ending is preserved. Page 11 now uses vertical stacks showing
+full-window MAE plus the increase for each shorter window, using the saved
+training-window sensitivity scores.
 
 `extend_story.py` builds this edition from the preserved 11-page v5 PDF and
 `experiments/review_history/outputs/outcome_capture.csv`. It requires Python with

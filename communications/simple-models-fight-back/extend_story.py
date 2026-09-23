@@ -39,30 +39,14 @@ def base(c, number):
     text(c, 90, 88, f'SIMPLE MODELS FIGHT BACK · {number:02}', 13.5, 'Bold', TEAL)
 
 
-def report(c, x, y, label, active=True):
-    c.setStrokeColor(TEAL if active else BORDER)
-    c.setFillColor('#E9F5F5' if active else CARD)
-    c.roundRect(x, H-y-52, 42, 52, 4, fill=1, stroke=1)
-    c.setStrokeColor(TEAL if active else BORDER)
-    for offset in [15, 24, 33]:
-        c.line(x+8, H-y-offset, x+34, H-y-offset)
-    text(c, x+5, y+70, label, 10, color=MUTED)
+def box(c, x, y, width, height, lines, color=TEAL):
+    c.setFillColor('#E9F5F5')
+    c.setStrokeColor(BORDER)
+    c.roundRect(x, H-y-height, width, height, 10, fill=1, stroke=1)
+    for i, line in enumerate(lines):
+        text(c, x+18, y+29+i*27, line, 19, 'Bold' if i == 0 else 'Body', color if i == 0 else INK)
 
 
-def review(c, x, y):
-    for row in range(2):
-        for col in range(5):
-            c.setFillColor(CYAN if row == col == 0 else '#DADDDC')
-            c.circle(x+col*17, H-y-row*17, 5, fill=1, stroke=0)
-    text(c, x-4, y+49, 'Review 10%', 16, 'Bold', TEAL)
-
-
-def arrow(c, x, y):
-    c.setStrokeColor(MUTED)
-    c.setLineWidth(2)
-    c.line(x, H-y, x+33, H-y)
-    c.line(x+25, H-y+5, x+33, H-y)
-    c.line(x+25, H-y-5, x+33, H-y)
 
 
 rows = list(csv.DictReader((ROOT / 'experiments/review_history/outputs/outcome_capture.csv').open()))
@@ -85,44 +69,89 @@ for y, line in zip([319, 351, 383], [
     'Same banks to choose from. Same 10% review capacity.',
 ]):
     text(c, 98, y, '•  '+line, 21)
-# Two equally sized routes make the information sets and capacity visible.
-text(c, 95, 432, 'FORECAST', 16, 'Bold', TEAL)
-text(c, 700, 432, 'ANOMALY DETECTION', 16, 'Bold', TEAL)
-report(c, 105, 452, 'Now')
-arrow(c, 170, 478)
-text(c, 228, 474, 'Predicted next-quarter', 17, 'Bold')
-text(c, 228, 500, 'deposit growth', 17, 'Bold')
-arrow(c, 425, 478)
-review(c, 494, 471)
-for i in range(8):
-    report(c, 700+i*45, 451, str(i+1))
-text(c, 700, 549, 'Eight quarters → unusual-history score', 18, 'Bold')
-arrow(c, 1076, 478)
-review(c, 1138, 471)
-text(c, 90, 598, 'But keep the original question in mind.', 20)
-text(c, 90, 636, "We're looking for banks whose deposits will grow slowly or decline next quarter.", 23, 'Bold')
-text(c, 90, 672, 'Would unusual histories help us find them?', 25, 'Bold', TEAL)
-text(c, 90, 710, 'Shared population requires complete histories. The forecast includes prior-quarter growth; anomaly inputs span eight quarters.', 12, color=MUTED)
+# Explain the input, ranking rule, and action without decorative report icons.
+box(c, 90, 412, 550, 148, [
+    'FORECAST: who will have lower deposit growth?',
+    'Use the five current-quarter inputs.',
+    'Predict next-quarter growth for each bank.',
+    'Choose the 10% with the lowest predictions.',
+])
+box(c, 670, 412, 580, 148, [
+    'ANOMALY: whose history looks most unusual?',
+    'Compare eight-quarter financial histories',
+    'with patterns learned from training banks.',
+    'Choose the 10% with the highest anomaly scores.',
+])
+text(c, 90, 593, '10% is an assumed workload: choose 10 of every 100 banks for a closer look.', 22, 'Bold', TEAL)
+text(c, 90, 628, 'Then check how many chosen banks had the lowest deposit growth next quarter.', 22)
+text(c, 90, 671, 'Would choosing unusual histories find more of those banks?', 26, 'Bold')
+text(c, 90, 710, 'Historical comparison on shared eligible banks. Forecast inputs include prior growth. No real analyst reviews were measured.', 12, color=MUTED)
 c.showPage()
 base(c, 10)
-text(c, 90, 143, 'THE ANOMALY MODELS CHANGED THE LIST.', 34, 'Heavy')
-text(c, 90, 190, 'RIDGE STILL FOUND MORE LOW-GROWTH BANKS.', 32, 'Heavy', CYAN)
+text(c, 90, 143, 'ANOMALY DETECTION DID NOT BEAT RIDGE', 34, 'Heavy')
+text(c, 90, 190, 'AT FINDING LOW-GROWTH BANKS HERE.', 34, 'Heavy', CYAN)
 text(c, 90, 236, 'I checked what happened to deposits next quarter. Every method had the same review capacity.', 21)
-text(c, 90, 278, 'Banks later in the lowest-growth 10%, out of 1,351 selections', 23, 'Bold')
-text(c, 90, 306, 'Pooled bank-quarter selections across March, June, and September 2024. Higher is better.', 17, color=MUTED)
+text(c, 90, 278, 'Out of every 100 selected, how many landed in the lowest-growth 10% next quarter?', 21, 'Bold')
+text(c, 90, 307, 'Same 1,351 selections per method, pooled across three 2024 quarters. Higher is better.', 18, color=MUTED)
+# Rates answer the limited-review question directly; counts remain beside each bar.
+for tick in [0, 5, 10, 15, 20, 25]:
+    x = 400+tick*28
+    c.setStrokeColor(BORDER)
+    c.setLineWidth(0.5)
+    c.line(x, H-330, x, H-550)
+    text(c, x-5, 575, str(tick), 14, color=MUTED)
 for i, (method, label) in enumerate(methods):
     y = 350+i*45
     value = int(pooled[method]['captured'])
+    rate = 100*value/int(pooled[method]['selected'])
     text(c, 105, y+5, label, 20, 'Bold' if i == 0 else 'Body')
     c.setFillColor(TEAL if i == 0 else '#496B9D' if i == 1 else '#9FB6BC')
-    c.roundRect(400, H-y-6, value*2.1, 24, 5, fill=1, stroke=0)
-    text(c, 414+value*2.1, y+5, str(value), 22, 'Bold')
-text(c, 400, 576, '0', 13, color=MUTED)
-text(c, 1015, 576, '300', 13, color=MUTED)
-text(c, 90, 620, 'For this historical review task, I kept the Ridge forecast.', 27, 'Bold', TEAL)
-text(c, 90, 655, 'Unusual histories gave us different priorities. They did not capture more low-growth cases here.', 20)
+    c.roundRect(400, H-y-6, rate*28, 24, 5, fill=1, stroke=0)
+    text(c, 413+rate*28, y+5, f'{rate:.1f}', 22, 'Bold')
+    text(c, 1130, y+5, f'{value} / 1,351', 17, color=MUTED)
+text(c, 105, 325, 'METHOD', 12, 'Bold', MUTED)
+text(c, 1130, 325, 'EXACT COUNTS', 12, 'Bold', MUTED)
+text(c, 90, 622, 'Same review budget. Ridge found about 22 per 100 selected.', 26, 'Bold', TEAL)
+text(c, 90, 657, 'The primary autoencoder found 20.3 per 100. PCA and Isolation Forest each found about 17.5.', 21)
 text(c, 90, 697, '13,490 complete histories with observed outcomes; lists recalculated at 10% within each quarter. Reused 2024 data, not a fresh test.', 12, color=MUTED)
 text(c, 90, 716, 'Stochastic models: seed 42 shown. No other tested seed or version without deposit size exceeded Ridge. Anomalies do not establish distress.', 12, color=MUTED)
+c.showPage()
+# The shorter-window chart stacks the baseline MAE and its measured increase.
+# These sum to each run's MAE; errors from separate models are never added.
+window_rows = list(csv.DictReader((ROOT / 'experiments/training_window_sensitivity/scores.csv').open()))
+window = {int(r['training_start']): float(r['MAE_pp']) for r in window_rows
+          if r['model'] == 'MLP' and r['seed'] == '42.0'}
+assert set(window) == {2013, 2020, 2021}
+assert all(window[y] >= window[2013] for y in window)
+base(c, 11)
+text(c, 90, 143, 'BUT WAIT. IN VOLATILE ECONOMIC TIMES,', 33, 'Heavy')
+text(c, 90, 187, 'WHAT IF WE TRAIN ON ONLY THE RECENT YEARS?', 31, 'Heavy', CYAN)
+text(c, 90, 232, 'Maybe older examples are less useful now. So I retrained starting in 2020, then 2021.', 22)
+text(c, 90, 270, 'Same model settings. Same 2023 validation. Same 13,532 bank-quarters scored in 2024.', 20, 'Bold')
+text(c, 105, 310, 'NEURAL NETWORK MAE (PERCENTAGE POINTS) · LOWER IS BETTER', 19, 'Bold')
+for x, color, label in [(265, TEAL, 'Full-window error'), (640, '#B16B24', 'Additional error with shorter window')]:
+    c.setFillColor(color)
+    c.rect(x, H-344, 17, 17, fill=1, stroke=0)
+    text(c, x+26, 342, label, 17)
+for tick in range(6):
+    y = 550-tick*35
+    c.setStrokeColor(BORDER)
+    c.setLineWidth(0.5)
+    c.line(205, H-y, 1120, H-y)
+    text(c, 168, y+5, str(tick), 15, color=MUTED)
+for x, year in zip([310, 630, 950], [2013, 2020, 2021]):
+    v = window[year]
+    baseline = window[2013]
+    c.setFillColor(TEAL)
+    c.rect(x, H-550, 130, baseline*35, fill=1, stroke=0)
+    c.setFillColor('#B16B24')
+    c.rect(x, H-550+baseline*35, 130, (v-baseline)*35, fill=1, stroke=0)
+    text(c, x+26, 550-v*35-13, f'{v:.3f}', 22, 'Bold')
+    text(c, x-5, 576, f'{year}-Sep 2022', 18, 'Bold')
+text(c, 355, 617, 'AND... THE ERRORS GOT BIGGER.', 30, 'Heavy', '#B16B24')
+text(c, 155, 650, 'Both shorter windows had higher MAE with all three seeds. Ridge had higher MAE too.', 21)
+text(c, 180, 683, 'So what if we keep the history, but let the forecast know the quarter?', 23, 'Bold', TEAL)
+text(c, 90, 713, 'Seed 42 shown; also checked 7 and 99. Reused 2024 outcomes. Shorter windows also have fewer training examples; no regime effect is isolated.', 12, color=MUTED)
 c.showPage()
 c.save()
 
@@ -134,6 +163,7 @@ for i, original in enumerate(reader.pages):
     if i == 8:
         for p in added.pages:
             writer.add_page(p)
+        continue  # The third generated page replaces the old training-window page.
     if i >= 8:
         # Cover only the old page-number header, retaining all original artwork.
         overlay = BytesIO()

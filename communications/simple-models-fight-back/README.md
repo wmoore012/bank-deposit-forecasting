@@ -49,3 +49,7 @@ scores are highlighted. No invented curves or clusters are used.
 Run `test_story_pdf.py` with Python containing pypdf and pdfplumber to check
 exported labels, source-derived forecast values, benchmark visibility, task
 direction, and paired-panel alignment. Visually inspect the rendered PDF too.
+
+The anomaly panel now zooms into the 455 highest observed March PCA scores and
+flags the maximum (CERT 27330), without treating the score as distress evidence.
+Tilted vector crowns mark measured winners. The future calendar test has no crown.

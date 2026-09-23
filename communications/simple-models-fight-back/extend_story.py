@@ -31,6 +31,25 @@ def text(c, x, y, value, size=20, font='Body', color=INK):
     c.drawString(x, H-y, value)
 
 
+def crown(c, x, y, size=30):
+    """Tilted vector crown: sharp at PDF scale, independent of emoji fonts."""
+    c.saveState()
+    c.translate(x, H-y)
+    c.rotate(13)
+    c.scale(size/30, size/30)
+    c.setFillColor('#F5BF24')
+    c.setStrokeColor('#513A06')
+    c.setLineWidth(1.5)
+    path=c.beginPath()
+    path.moveTo(-14,-8)
+    for px,py in [(-17,10),(-7,3),(0,15),(7,3),(17,10),(14,-8)]:
+        path.lineTo(px,py)
+    path.close()
+    c.drawPath(path,fill=1,stroke=1)
+    c.rect(-14,-12,28,5,fill=1,stroke=1)
+    c.restoreState()
+
+
 def base(c, number):
     c.setFillColor(WARM)
     c.rect(0, 0, W, H, fill=1, stroke=0)
@@ -65,9 +84,10 @@ new = BytesIO()
 c = canvas.Canvas(new, pagesize=(W, H))
 # Rebuild the size-only page with separate, clearly named scoring tasks.
 base(c, 8)
-text(c, 90, 142, 'I THREW OUT 4 INPUTS.', 36, 'Heavy')
-text(c, 90, 190, 'KEPT DEPOSIT SIZE ALONE.', 36, 'Heavy', CYAN)
-text(c, 90, 235, 'Do cash, loans, equity, and prior growth help choose which banks to review?', 23)
+text(c, 90, 129, 'Okay. We can rank the banks. But how much of that ranking comes from deposit size?', 23)
+text(c, 90, 176, 'I THREW OUT 4 INPUTS.', 32, 'Heavy')
+text(c, 90, 217, 'KEPT DEPOSIT SIZE ALONE.', 32, 'Heavy', CYAN)
+text(c, 90, 251, 'Do the other four inputs help decide whom to review first?', 22)
 text(c, 90, 285, 'REVIEW-LIST TASK: FIND MORE LOW-GROWTH BANKS · HIGHER IS BETTER', 20, 'Bold', TEAL)
 means = {r['Model']: float(r['Precision'])*100 for r in csv.DictReader((ROOT/'growth_outputs/masterclass/mean_ranking.csv').open())}
 rank_rows = [('Five-input Ridge', means['Ridge']), ('Neural network', means['MLP']),
@@ -78,6 +98,7 @@ for i, (label, value) in enumerate(rank_rows):
     c.setFillColor(TEAL if i == 0 else '#9FB6BC')
     c.roundRect(395, H-y-8, value*28, 27, 5, fill=1, stroke=0)
     text(c, 409+value*28, y+5, f'{value:.1f}', 23, 'Bold')
+crown(c, 1110, 328)
 text(c, 395, 522, 'Banks in next-quarter lowest-growth 10% per 100 selected', 18)
 text(c, 90, 575, 'ZERO FORECAST: EVERY BANK TIED', 22, 'Bold', MUTED)
 text(c, 90, 613, 'Zero cannot choose whom to review first. Random selection is the comparison above.', 21)
@@ -131,24 +152,33 @@ k = math.ceil(.1*len(score_rows))
 assert k == 455
 text(c, 700, 420, 'ANOMALY: actual March 2024 PCA scores', 21, 'Bold', TEAL)
 text(c, 700, 446, '4,548 banks · PCA reconstruction error (log scale)', 16, color=MUTED)
-px0, px1 = 760, 1215
-logs = [math.log10(float(r['PCA'])) for r in score_rows]
+# Zoom only the declared review set; its exact population stays explicit.
+zoom = score_rows[-k:]
+px0, px1 = 760, 1150
+logs = [math.log10(float(r['PCA'])) for r in zoom]
 lo,hi = math.floor(min(logs)),math.ceil(max(logs))
 py = lambda v: bottom-(v-lo)/(hi-lo)*(bottom-top)
-for exponent in range(lo,hi+1,2):
+for exponent in range(lo,hi+1):
     line(c,px0,py(exponent),px1,py(exponent),BORDER)
     text(c,704,py(exponent)+4,f'10^{exponent}',12,color=MUTED)
 for i,value in enumerate(logs):
     x = px0+i/(len(logs)-1)*(px1-px0)
-    c.setFillColor('#B16B24' if i >= len(logs)-k else '#9FB6BC')
-    c.circle(x,H-py(value),1,fill=1,stroke=0)
-cutoff = px0+(len(logs)-k)/(len(logs)-1)*(px1-px0)
-line(c,cutoff,top,cutoff,bottom,'#B16B24',[3,3])
-text(c,760,577,'Banks ordered by anomaly score',13,color=MUTED)
-text(c,1092,463,'Top 455',14,'Bold','#B16B24')
-text(c, 90, 611, 'Lowest forecast growth → review first.', 21, 'Bold', TEAL)
-text(c, 700, 611, 'Highest reconstruction error → review first.', 21, 'Bold', TEAL)
-text(c, 90, 647, 'Zero stays in the comparison: it predicts no change for every bank, so every rank is tied.', 21)
+    c.setFillColor('#B16B24')
+    c.circle(x,H-py(value),1.4,fill=1,stroke=0)
+# Flag the actual maximum. This is a high reconstruction error, not a distress label.
+flag_y=py(logs[-1])
+c.setStrokeColor('#B3132B');c.setLineWidth(3)
+c.line(px1,H-flag_y,px1,H-flag_y+35)
+c.setFillColor('#D51C37')
+flag=c.beginPath();flag.moveTo(px1,H-flag_y+35)
+flag.lineTo(px1+35,H-flag_y+27);flag.lineTo(px1,H-flag_y+18);flag.close()
+c.drawPath(flag,fill=1,stroke=0)
+text(c,760,577,'ZOOM: the 455 highest scores, low → high',14,'Bold','#B3132B')
+most=zoom[-1]
+text(c,700,591,f"Flag: CERT {most['CERT']} · highest score {float(most['PCA']):.2f}",14,color='#B3132B')
+text(c, 90, 623, 'Lowest forecast growth → review first.', 21, 'Bold', TEAL)
+text(c, 700, 623, 'Highest reconstruction error → review first.', 21, 'Bold', TEAL)
+text(c, 90, 658, 'Zero stays in the comparison: it predicts no change for every bank, so every rank is tied.', 21)
 text(c, 90, 684, 'Same 10% workload. Which list finds more low-growth banks next quarter?', 25, 'Bold')
 text(c, 90, 714, 'Sources: saved Study 1 predictions and Study 2 PCA scores. Historical forecast issued from March inputs; June outcome is not drawn.', 12, color=MUTED)
 c.showPage()
@@ -176,7 +206,8 @@ for i, (method, label) in enumerate(methods):
     text(c, 1130, y+5, f'{value} / 1,351', 17, color=MUTED)
 text(c, 105, 325, 'METHOD', 12, 'Bold', MUTED)
 text(c, 1130, 325, 'EXACT COUNTS', 12, 'Bold', MUTED)
-text(c, 90, 601, 'Zero forecast: all banks tied. No informative review order.', 19, 'Bold', MUTED)
+crown(c, 1107, 347, 22)
+text(c, 90, 601, "We're still ranking banks: which list finds more low-growth cases at the same capacity?", 21, 'Bold', TEAL)
 text(c, 90, 629, 'SCORECARD SO FAR', 17, 'Bold', MUTED)
 text(c, 90, 655, 'MAE: zero growth     |     RMSE: neural network     |     Review list: Ridge', 24, 'Bold', TEAL)
 text(c, 90, 697, '13,490 complete histories with observed outcomes; lists recalculated at 10% within each quarter. Reused 2024 data, not a fresh test.', 12, color=MUTED)
@@ -218,9 +249,13 @@ line(c,zero_x,365,zero_x,533,'#496B9D',[3,3])
 text(c, 890, 591, f'Zero MAE: {zero_mae:.3f} pp', 17, 'Bold', '#496B9D')
 # Arrow points to the additional error for the 2020-start fit.
 arrow_x = 385+(window[2013]+window[2020])/2*145
-line(c, 1145, 413, arrow_x, 445, '#C23830')
-line(c, arrow_x,445,arrow_x+13,433,'#C23830')
-line(c, arrow_x,445,arrow_x+17,448,'#C23830')
+# A white halo separates the red arrow from both teal and amber bars.
+for color,width in [('#FFFFFF',10),('#B3132B',5)]:
+    c.setStrokeColor(color);c.setLineWidth(width)
+    c.line(1145,H-413,arrow_x,H-445)
+    c.line(arrow_x,H-445,arrow_x+16,H-431)
+    c.line(arrow_x,H-445,arrow_x+20,H-450)
+crown(c, 1080, 585, 24)
 text(c, 1030, 397, f"+{window[2020]-window[2013]:.3f} pp", 18, 'Bold', '#C23830')
 centered(c, 617, 'AND... THE ERRORS GOT BIGGER.', 30, 'Heavy', '#B16B24')
 centered(c, 650, 'Both shorter windows had higher MAE with all three seeds. Ridge had higher MAE too.', 21)
@@ -249,6 +284,14 @@ for i, original in enumerate(reader.pages):
         text(header, 90, 88, f'SIMPLE MODELS FIGHT BACK · {i+3:02}', 13.5, 'Bold', TEAL)
         header.save()
         original.merge_page(PdfReader(overlay).pages[0])
+    winner_positions = {0: [(1185,458)], 5: [(561,272),(1168,272)], 6: [(1195,477)]}
+    if i in winner_positions:
+        marks=BytesIO()
+        overlay_canvas=canvas.Canvas(marks,pagesize=(W,H))
+        for cx,cy in winner_positions[i]:
+            crown(overlay_canvas,cx,cy,27)
+        overlay_canvas.save()
+        original.merge_page(PdfReader(marks).pages[0])
     writer.add_page(original)
 writer.add_metadata({'/Title': 'Simple Models Fight Back', '/Subject': 'Deposit forecasts and unusual financial histories'})
 with OUTPUT.open('wb') as f:

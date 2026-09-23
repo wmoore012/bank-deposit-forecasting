@@ -1,0 +1,8 @@
+{
+  "url": "https://api.fdic.gov/banks/failures?fields=NAME%2CCERT%2CFAILDATE%2CRESTYPE&limit=10000&format=json&sort_by=FAILDATE&sort_order=DESC",
+  "retrieved_utc": "2026-09-23T01:47:52.138037+00:00",
+  "rows": 4117,
+  "latest_recorded_event": "2026-07-17",
+  "sha256": "d2308bf3e78741be21b9fec71a98d1afe8669bef85ab08982f54c9f4682dedcf",
+  "boundary": "Verified events annotate unresolved outcomes; they do not supply missing balances or prove the reason for missing reports."
+}

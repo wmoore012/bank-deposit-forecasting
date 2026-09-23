@@ -32,8 +32,10 @@ class StaticPreviewTests(unittest.TestCase):
             'display(chart)', execution_count=1, outputs=[nbformat.v4.new_output(
                 'display_data', data={'text/html': html})])])
 
-        def render_images(*, fig, file, format, scale):
+        def render_images(*, fig, file, format, scale, width, height):
             self.assertEqual(scale, 2)
+            self.assertEqual(width, [900])
+            self.assertEqual(height, [500])
             for target in file:
                 Path(target).write_bytes(b'publication image fixture')
 

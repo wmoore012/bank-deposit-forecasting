@@ -123,59 +123,40 @@ score_rows.sort(key=lambda r: (float(r['PCA']), -int(r['CERT'])))
 assert len(score_rows) == 4548
 k = math.ceil(.1*len(score_rows))
 assert k == 455
-# Both panels answer how saved PCA scores become a review queue.
-text(c, 90, 430, '1. RANK ALL 4,548 BANKS', 23, 'Bold', TEAL)
-text(c, 90, 458, 'March 2024 · PCA reconstruction error (log scale)', 17, color=MUTED)
-text(c, 700, 430, '2. REVIEW THE TOP 10%', 23, 'Bold', TEAL)
-text(c, 700, 458, '455 banks · reconstruction error (log scale)', 17, color=MUTED)
-top, bottom = 482, 562
+# One empirical ranking: highlight the review set without repeating the same curve.
+text(c, 90, 430, 'RANK ALL 4,548 BANKS · REVIEW THE 455 HIGHEST ERRORS', 23, 'Bold', TEAL)
+text(c, 90, 459, 'March 2024 · PCA reconstruction error (log scale)', 18, color=MUTED)
+top, bottom = 482, 594
 all_logs = [math.log10(float(r['PCA'])) for r in score_rows]
 full_lo, full_hi = math.floor(min(all_logs)), math.ceil(max(all_logs))
 full_y = lambda v: bottom-(v-full_lo)/(full_hi-full_lo)*(bottom-top)
 for exponent in range(full_lo, full_hi+1):
-    line(c,140,full_y(exponent),615,full_y(exponent),BORDER)
-    text(c,91,full_y(exponent)+4,f'10^{exponent}',12,color=MUTED)
+    line(c,140,full_y(exponent),850,full_y(exponent),BORDER)
+    text(c,91,full_y(exponent)+4,f'10^{exponent}',14,color=MUTED)
 for i,value in enumerate(all_logs):
-    c.setFillColor('#B16B24' if i >= len(score_rows)-k else '#9FB6BC')
-    c.circle(140+i/(len(score_rows)-1)*475,H-full_y(value),1.2,fill=1,stroke=0)
-cut_x = 140+(len(score_rows)-k)/(len(score_rows)-1)*475
-line(c,cut_x,478,cut_x,565,'#B3132B',[3,3])
-text(c,140,590,'Lowest error',17,color=MUTED)
-text(c,432,590,'455 selected →',18,'Bold','#B3132B')
-# Zoom only the declared review set; its exact population stays explicit.
-zoom = score_rows[-k:]
-px0, px1 = 760, 1150
-logs = [math.log10(float(r['PCA'])) for r in zoom]
-lo,hi = math.floor(min(logs)),math.ceil(max(logs))
-py = lambda v: bottom-(v-lo)/(hi-lo)*(bottom-top)
-for exponent in range(lo,hi+1):
-    line(c,px0,py(exponent),px1,py(exponent),BORDER)
-    text(c,704,py(exponent)+4,f'10^{exponent}',12,color=MUTED)
-for i,value in enumerate(logs):
-    x = px0+i/(len(logs)-1)*(px1-px0)
-    c.setFillColor('#B16B24')
-    c.circle(x,H-py(value),1.4,fill=1,stroke=0)
-# Flag the actual maximum. This is a high reconstruction error, not a distress label.
-flag_y=py(logs[-1])
+    c.setFillColor('#B3132B' if i >= len(score_rows)-k else '#9FB6BC')
+    c.circle(140+i/(len(score_rows)-1)*710,H-full_y(value),1.4,fill=1,stroke=0)
+cut_x = 140+(len(score_rows)-k)/(len(score_rows)-1)*710
+line(c,cut_x,478,cut_x,598,'#B3132B',[3,3])
+text(c,140,623,'Lowest error',18,color=MUTED)
+text(c,646,623,'455 selected →',20,'Bold','#B3132B')
+flag_y=full_y(all_logs[-1])
 c.setStrokeColor('#B3132B');c.setLineWidth(3)
-c.line(px1,H-flag_y,px1,H-flag_y+35)
+c.line(850,H-flag_y,850,H-flag_y+35)
 c.setFillColor('#D51C37')
-flag=c.beginPath();flag.moveTo(px1,H-flag_y+35)
-flag.lineTo(px1+35,H-flag_y+27);flag.lineTo(px1,H-flag_y+18);flag.close()
+flag=c.beginPath();flag.moveTo(850,H-flag_y+35)
+flag.lineTo(885,H-flag_y+27);flag.lineTo(850,H-flag_y+18);flag.close()
 c.drawPath(flag,fill=1,stroke=0)
-text(c,760,590,'Zoom: 455 highest scores, low → high',16,'Bold','#B3132B')
-most=zoom[-1]
-assert most['CERT'] == '27330'
-c.setFillColor('#FFF0F1'); c.setStrokeColor('#B3132B'); c.setLineWidth(1.5)
-c.roundRect(700,H-692,550,99,10,fill=1,stroke=1)
-text(c,716,618,'SILVERGATE: THE HIGHEST ERROR',21,'Bold','#B3132B')
-text(c,716,645,'PCA reconstructed its eight-quarter history',19)
-text(c,716,670,'least accurately. That is why it ranks first.',19)
-line(c,1185,flag_y,1235,588,'#B3132B')
-text(c,90,628,'455 banks make the cut.',26,'Bold')
-text(c,90,665,'Does that help us find',28,'Bold',TEAL)
-text(c,90,699,'low-growth banks?',28,'Bold',TEAL)
-text(c, 90, 714, 'Source: saved March 2024 PCA scores. Unusual histories are not proof of distress; next-quarter growth is evaluated on the next page.', 12, color=MUTED)
+assert score_rows[-1]['CERT'] == '27330'
+c.setFillColor('#FFF0F1');c.setStrokeColor('#B3132B');c.setLineWidth(1.5)
+c.roundRect(945,H-614,305,142,10,fill=1,stroke=1)
+text(c,963,502,'SILVERGATE',24,'Bold','#B3132B')
+text(c,963,530,'The highest error.',22,'Bold')
+text(c,963,559,'PCA rebuilt its history',21)
+text(c,963,586,'least accurately.',21)
+line(c,885,flag_y,945,543,'#B3132B')
+text(c,90,671,'Will these unusual banks have low growth next quarter?',28,'Bold',TEAL)
+text(c,90,711,'Source: saved March 2024 PCA scores. Unusual does not mean distressed.',14,color=MUTED)
 c.showPage()
 base(c, 10)
 text(c, 90, 143, 'RIDGE RANKED THE REVIEW LIST BEST HERE.', 32, 'Heavy')
@@ -199,7 +180,7 @@ for i, (method, label) in enumerate(methods):
 crown(c, 1135, 286, 30)
 c.setFillColor('#E9F5F5');c.setStrokeColor(BORDER)
 c.roundRect(90,H-648,1160,61,12,fill=1,stroke=1)
-text(c, 112, 626, 'PREDICT ZERO CANNOT RANK BANKS. EVERY FORECAST IS TIED.', 24, 'Bold', TEAL)
+text(c, 112, 626, 'PREDICT ZERO CANNOT RANK BANKS. SO WE CANNOT USE IT FOR THIS LIST.', 24, 'Bold', TEAL)
 text(c, 90, 683, '1,351 bank-quarter reviews per method · 13,490 eligible rows · three reused 2024 quarters', 18)
 text(c, 90, 712, 'Primary seed 42 shown. These historical results do not establish future performance.', 18, color=MUTED)
 c.showPage()
@@ -215,7 +196,7 @@ text(c, 90, 187, 'WHAT IF WE TRAIN ON ONLY THE RECENT YEARS?', 31, 'Heavy', INK)
 text(c, 90, 232, 'Maybe older examples are less useful now. So I retrained starting in 2020, then 2021.', 22)
 text(c, 90, 270, 'Model settings held fixed; validated in 2023; scored on 13,532 bank-quarters in 2024.', 20, 'Bold')
 text(c, 105, 310, 'BACK TO FORECAST ERROR: NEURAL NETWORK MAE (pp) · LOWER IS BETTER', 19, 'Bold')
-older, recent, latest = '#008AA3', '#C34B58', '#991D39'
+older, recent, latest = CYAN, '#F05A71', '#C91D46'
 text(c,175,342,'OLDER HISTORY',18,'Bold',older)
 text(c,433,342,'MORE RECENT HISTORY',18,'Bold',latest)
 for tick in range(6):
@@ -272,6 +253,21 @@ for i, original in enumerate(reader.pages):
         text(header, 90, 88, f'SIMPLE MODELS FIGHT BACK · {i+3:02}', 13.5, 'Bold', TEAL)
         header.save()
         original.merge_page(PdfReader(overlay).pages[0])
+    if i in (5, 6):
+        revision = BytesIO()
+        revised = canvas.Canvas(revision, pagesize=(W,H))
+        revised.setFillColor(CARD)
+        if i == 5:
+            revised.rect(75,H-678,1190,113,fill=1,stroke=0)
+            text(revised,90,591,'SMALL PERCENTAGE GAP. REAL DOLLAR SCALE.',27,'Heavy')
+            text(revised,90,625,'On a $1 billion deposit base: 0.026 pp = $260,000; 0.289 pp = $2.89 million.',23,'Bold')
+            text(revised,90,657,'MAE gap (zero vs MLP) · RMSE gap (zero vs MLP). Scale illustration, not measured savings.',19)
+        else:
+            revised.rect(80,H-190,1190,91,fill=1,stroke=0)
+            text(revised,90,140,'PREDICTING 0% TIES EVERY BANK.',32,'Heavy')
+            text(revised,90,180,'BUT, THE LEARNED MODELS TELL ME WHO TO REVIEW FIRST.',28,'Heavy',CYAN)
+        revised.save()
+        original.merge_page(PdfReader(revision).pages[0])
     winner_positions = {0: [(1185,458)], 5: [(561,272),(1168,272)], 6: [(1195,477)]}
     if i in winner_positions:
         marks=BytesIO()

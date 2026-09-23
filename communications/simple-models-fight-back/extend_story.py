@@ -187,34 +187,29 @@ text(c, 90, 714, 'Sources: saved Study 1 predictions and Study 2 PCA scores. His
 c.showPage()
 base(c, 10)
 text(c, 90, 143, 'RIDGE RANKED THE REVIEW LIST BEST HERE.', 32, 'Heavy')
-text(c, 90, 190, 'PREDICT ZERO CANNOT RANK IT AT ALL.', 34, 'Heavy', CYAN)
-text(c, 90, 236, 'STILL THE REVIEW-LIST TASK: cases found per 100 selected. HIGHER IS BETTER.', 21, 'Bold', TEAL)
-text(c, 90, 278, 'Out of every 100 selected, how many landed in the lowest-growth 10% next quarter?', 21, 'Bold')
-text(c, 90, 307, 'All seven methods: 1,351 selections each across three 2024 quarters.', 18, color=MUTED)
-# Rates answer the limited-review question directly; counts remain beside each bar.
+text(c, 90, 201, 'Low-growth banks found per 100 banks reviewed', 29, 'Bold', TEAL)
+text(c, 90, 237, 'Target: next-quarter bottom 10% in deposit growth. Higher is better.', 22)
+# A single scale and directly labeled bars carry the comparison.
 for tick in [0, 5, 10, 15, 20, 25]:
-    x = 400+tick*28
+    x = 435+tick*27
     c.setStrokeColor(BORDER)
     c.setLineWidth(0.5)
-    c.line(x, H-330, x, H-550)
-    text(c, x-5, 575, str(tick), 14, color=MUTED)
+    c.line(x, H-266, x, H-533)
+    text(c, x-6, 562, str(tick), 17, color=MUTED)
 for i, (method, label) in enumerate(methods):
-    y = 347+i*33
+    y = 285+i*38
     value = int(pooled[method]['captured'])
     rate = 100*value/int(pooled[method]['selected'])
-    text(c, 105, y+5, label, 20, 'Bold' if i == 0 else 'Body')
+    text(c, 100, y+7, label, 24, 'Bold' if i == 0 else 'Body')
     c.setFillColor(TEAL if i == 0 else '#496B9D' if i == 1 else '#9FB6BC')
-    c.roundRect(400, H-y-6, rate*28, 21, 5, fill=1, stroke=0)
-    text(c, 413+rate*28, y+5, f'{rate:.1f}', 22, 'Bold')
-    text(c, 1130, y+5, f'{value} / 1,351', 17, color=MUTED)
-text(c, 105, 325, 'METHOD', 12, 'Bold', MUTED)
-text(c, 1130, 325, 'EXACT COUNTS', 12, 'Bold', MUTED)
-crown(c, 1107, 347, 22)
-text(c, 90, 601, "We're still ranking banks: which list finds more low-growth cases at the same capacity?", 21, 'Bold', TEAL)
-text(c, 90, 629, 'SCORECARD SO FAR', 17, 'Bold', MUTED)
-text(c, 90, 655, 'MAE: zero growth     |     RMSE: neural network     |     Review list: Ridge', 24, 'Bold', TEAL)
-text(c, 90, 697, '13,490 complete histories with observed outcomes; lists recalculated at 10% within each quarter. Reused 2024 data, not a fresh test.', 12, color=MUTED)
-text(c, 90, 716, 'Stochastic models: seed 42 shown. No other tested seed or version without deposit size exceeded Ridge. Anomalies do not establish distress.', 12, color=MUTED)
+    c.roundRect(435, H-y-8, rate*27, 26, 5, fill=1, stroke=0)
+    text(c, 449+rate*27, y+7, f'{rate:.1f}', 25, 'Bold')
+crown(c, 1135, 286, 30)
+c.setFillColor('#E9F5F5');c.setStrokeColor(BORDER)
+c.roundRect(90,H-648,1160,61,12,fill=1,stroke=1)
+text(c, 112, 626, 'PREDICT ZERO CANNOT RANK BANKS. EVERY FORECAST IS TIED.', 24, 'Bold', TEAL)
+text(c, 90, 683, '1,351 bank-quarter reviews per method · 13,490 eligible rows · three reused 2024 quarters', 18)
+text(c, 90, 712, 'Primary seed 42 shown. These historical results do not establish future performance.', 18, color=MUTED)
 c.showPage()
 # The shorter-window chart stacks the baseline MAE and its measured increase.
 # These sum to each run's MAE; errors from separate models are never added.

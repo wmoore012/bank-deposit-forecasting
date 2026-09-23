@@ -68,6 +68,13 @@ class ExperimentTests(unittest.TestCase):
                     self.assertIsNotNone(c.execution_count)
                     self.assertFalse(any(o.output_type=='error' for o in c.outputs))
             html='\n'.join(o.get('data',{}).get('text/html','') for c in nb.cells for o in c.get('outputs',[]))
+            # Inspect the preserved interactive markup behind static publication images.
+            for c in nb.cells:
+                for o in c.get('outputs', []):
+                    saved = o.get('data', {}).get('text/html', '')
+                    if 'data-static-version=' in saved and 'host.innerHTML=' in saved:
+                        interactive, _ = json.JSONDecoder().raw_decode(saved.split('host.innerHTML=', 1)[1])
+                        html += interactive
             self.assertIn('Plotly.newPlot',html)
             self.assertIn('"responsive": false',html)
             self.assertNotIn('src="https://cdn.plot.ly/',html)

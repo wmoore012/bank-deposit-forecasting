@@ -7,6 +7,7 @@ Chrome installed. Modeling and notebook execution do not require Kaleido.
 import argparse
 import base64
 import json
+from html import escape
 from pathlib import Path
 import re
 import tempfile
@@ -47,45 +48,56 @@ def add_static_fallbacks(path):
     for cell in notebook.cells:
         for output in cell.get("outputs", []):
             html = output.get("data", {}).get("text/html", "")
-            if html:
-                html = readable_card_spacing(html)
-                output.data["text/html"] = html
-            if "data-static-fallback" in html:
+            if not html:
                 continue
-            for chart_id, figure in figures_in_html(html):
-                pending.append((output, chart_id, figure))
-    if not pending:
-        print(path.name, "already has fallbacks or contains no charts")
-        nbformat.write(notebook, path)
-        return
+            html = readable_card_spacing(html)
+            output.data["text/html"] = html
+            if 'data-static-version="3"' in html:
+                continue
+            if 'data-static-version="2"' in html:
+                html, _ = json.JSONDecoder().raw_decode(html.split('host.innerHTML=', 1)[1])
+            # Upgrade the first publication format without nesting its old image.
+            html = re.sub(r'<img\b[^>]*data-static-fallback="true"[^>]*>', "", html)
+            html = re.sub(r"<script>if\(window.Plotly\)\{var img=.*?</script>", "", html)
+            figures = list(figures_in_html(html))
+            if len(figures) > 1:
+                raise ValueError("Expected one chart per notebook display output")
+            for chart_id, figure in figures:
+                figure.update_layout(width=900)
+                figure.update_layout(title_y=0.96, title_pad_t=0)
+                pending.append((output, chart_id, figure, html))
     with tempfile.TemporaryDirectory(prefix="notebook-charts-") as directory:
         images = [Path(directory) / f"{i}.png" for i in range(len(pending))]
-        pio.write_images(fig=[entry[2] for entry in pending], file=images, format="png", scale=1)
-        for (output, chart_id, figure), image in zip(pending, images):
+        if images:
+            pio.write_images(
+                fig=[entry[2] for entry in pending], file=images, format="png", scale=2
+            )
+        for (output, chart_id, figure, html), image in zip(pending, images):
             encoded = base64.b64encode(image.read_bytes()).decode()
-            image_id = chart_id + "-static"
+            host_id = chart_id + "-preview"
+            title = re.sub(r"<[^>]+>", " ", figure.layout.title.text or "Chart")
             fallback = (
-                f'<img id="{image_id}" data-static-fallback="true" '
-                f'alt="Static chart preview" src="data:image/png;base64,{encoded}" '
-                'style="width:100%;height:auto;display:block"/>'
+                f'<div id="{host_id}" data-static-version="3">'
+                f'<img alt="{escape(title, quote=True)}" width="900" '
+                f'src="data:image/png;base64,{encoded}" '
+                'style="max-width:100%;height:auto"/></div>'
             )
-            html = output.data["text/html"]
-            opening = re.compile(r'(<div\b[^>]*\bid="' + re.escape(chart_id) + r'"[^>]*>)')
-            html, replacements = opening.subn(
-                lambda match: match.group(1) + fallback, html, count=1
+            # The static image has no fixed-height chart ancestors. Trusted HTML
+            # replaces it with the original interactive output; GitHub strips JS.
+            payload = json.dumps(html).replace("</", "<\\/")
+            interactive = (
+                "<script>if(window.Plotly){"
+                f'const host=document.getElementById("{host_id}");'
+                f"host.innerHTML={payload};"
+                'host.querySelectorAll("script").forEach(old=>{'
+                'const script=document.createElement("script");'
+                "script.textContent=old.textContent;old.replaceWith(script);});"
+                "}</script>"
             )
-            if replacements != 1:
-                raise ValueError(f"Cannot locate chart container {chart_id}")
-            # GitHub strips scripts and retains the image. Trusted notebooks and
-            # offline HTML hide it when their bundled interactive library exists.
-            hide = (
-                f'<script>if(window.Plotly){{var img=document.getElementById("{image_id}");'
-                'if(img)img.style.display="none";}</script>'
-            )
-            output.data["text/html"] = html + hide
+            output.data["text/html"] = fallback + interactive
     nbformat.validate(notebook)
     nbformat.write(notebook, path)
-    print(path.name, len(pending), "static chart fallbacks embedded", flush=True)
+    print(path.name, len(pending), "high-resolution chart previews embedded", flush=True)
 
 
 if __name__ == "__main__":

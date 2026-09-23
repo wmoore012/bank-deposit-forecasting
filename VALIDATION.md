@@ -145,3 +145,9 @@ within the viewport. The browser screenshot compositor returned blank/distorted 
 under viewport overrides, so narrow-screen visual inspection remains limited to DOM
 geometry; desktop screenshots were available normally. All twelve PNGs and twelve PDF
 pages were rendered and reviewed as contact sheets. The PDF has twelve portrait pages.
+
+## GitHub preview repair, September 23, 2026
+
+GitHub loaded the notebooks but suppressed JavaScript-only charts. The first static fallback restored images; reader screenshots exposed cropping inside fixed-height containers and low-resolution text. The revised publication output places a 2x-resolution image outside those containers and preserves the original interactive markup for trusted HTML. Static PNG inspection confirms complete labels and axes for the reported examples. Card labels now retain whitespace without their styles. Model code, predictions, and execution counts are unchanged.
+
+Live browser verification of this second preview repair remains pending: automatic approval review could not complete because its service reported a usage limit. This is a verification gap, not a passed browser check.

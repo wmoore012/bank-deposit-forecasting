@@ -202,3 +202,13 @@ separate from the original observed-outcome predictions.
 Build the offline HTML and ZIP deliverables after execution and tests:
 ` .venv/bin/python package_project.py`. Both bundles contain both executed editions,
 the shared module, all three training-window seeds, and the frozen-model receipts.
+
+## Reading the charts on GitHub
+
+The saved notebooks include static chart images because GitHub does not run notebook JavaScript. The downloadable HTML keeps the interactive charts. Re-executing a notebook replaces its outputs; before publishing, regenerate the static previews with this optional command (Chrome is required):
+
+```sh
+uv run --no-project --with nbformat --with plotly==7.1.0 --with kaleido==1.4.0 python export_static_notebooks.py FDIC_Deep_Learning_Masterclass.ipynb FDIC_Deep_Learning_Submission.ipynb
+```
+
+This publication step changes saved display outputs only, not model fitting or scores.

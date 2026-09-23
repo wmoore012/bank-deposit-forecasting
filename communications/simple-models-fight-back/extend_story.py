@@ -79,13 +79,9 @@ for i, (label, value) in enumerate(rank_rows):
     c.roundRect(395, H-y-8, value*28, 27, 5, fill=1, stroke=0)
     text(c, 409+value*28, y+5, f'{value:.1f}', 23, 'Bold')
 text(c, 395, 522, 'Banks in next-quarter lowest-growth 10% per 100 selected', 18)
-text(c, 90, 575, 'FORECAST-ERROR TASK: MAE · LOWER IS BETTER', 19, 'Bold', '#496B9D')
-# A separate score list keeps the constant forecast visible without inventing a rank.
-scores = {r['Model']: float(r['MAE (pp)']) for r in csv.DictReader((ROOT/'growth_outputs/masterclass/extended_scores.csv').open())}
-for x, model, label in [(90,'Zero growth','Predict 0%'),(370,'MLP','Neural network'),(650,'Ridge','Five-input Ridge'),(950,'Size-only Ridge','Deposit-size Ridge')]:
-    text(c, x, 613, label, 19, 'Bold' if model == 'Zero growth' else 'Body')
-    text(c, x, 647, f"{scores[model]:.3f} pp", 24, 'Bold', TEAL if model == 'Zero growth' else MUTED)
-text(c, 90, 682, 'Zero has the lowest MAE here. It gives every bank the same forecast, so it cannot order a review list.', 19)
+text(c, 90, 575, 'ZERO FORECAST: EVERY BANK TIED', 22, 'Bold', MUTED)
+text(c, 90, 613, 'Zero cannot choose whom to review first. Random selection is the comparison above.', 21)
+text(c, 90, 661, 'This page scores the review list. More low-growth banks found is better.', 24, 'Bold', TEAL)
 text(c, 90, 713, 'Ranking: equal-quarter averages, three reused 2024 quarters. Size-only challenger added after examining outcomes. Original evaluation population.', 12, color=MUTED)
 c.showPage()
 base(c, 9)
@@ -98,43 +94,63 @@ for y, bullet in zip([319, 351, 383], [
     'Three methods: PCA, Isolation Forest, and a small autoencoder.',
     'Same banks to choose from. Same 10% review capacity.',
 ]):
-    text(c, 98, y, '•  '+bullet, 21)
-# Both mini-plots are explicitly schematic, rather than invented empirical results.
-text(c, 105, 420, 'FORECAST: predict the next value', 21, 'Bold', TEAL)
-text(c, 720, 420, 'ANOMALY: find unusual observations', 21, 'Bold', TEAL)
-text(c, 105, 444, 'Schematic deposit history', 14, color=MUTED)
-text(c, 720, 444, 'Schematic feature-space view', 14, color=MUTED)
-line(c, 130, 548, 595, 548, BORDER)
-line(c, 130, 460, 130, 548, BORDER)
-points = [(145,492),(205,480),(265,497),(325,486),(385,509),(445,503)]
-for start, end in zip(points, points[1:]):
-    line(c, *start, *end)
+    text(c, 90, y, '•  '+bullet, 21)
+# Draw observed balances and a saved forecast, never invented plotting coordinates.
+history = sorted([r for r in csv.DictReader((ROOT/'experiments/review_history/outputs/example_histories.csv').open())
+                  if r['CERT'] == '27010'], key=lambda r: r['date'])
+pred = next(r for r in csv.DictReader((ROOT/'growth_outputs/masterclass/predictions.csv').open())
+            if r['CERT'] == '27010' and r['date'] == '2024-03-31')
+forecast_balance = float(pred['DEPDOM'])*(1+float(pred['Ridge']))/1000
+assert len(history) == 8
+assert round(forecast_balance, 3) == 15.766
+text(c, 90, 420, 'FORECAST: Young Americans Bank', 21, 'Bold', TEAL)
+text(c, 90, 446, 'Domestic deposits (USD millions)', 16, color=MUTED)
+x0, x1, top, bottom = 140, 490, 467, 555
+fy = lambda v: bottom-(v-15)/6*(bottom-top)
+for value in [15,18,21]:
+    line(c, x0, fy(value), x1, fy(value), BORDER)
+    text(c, 105, fy(value)+5, str(value), 13, color=MUTED)
+points = [(x0+i*(x1-x0)/8, fy(float(r['DEPDOM'])/1000)) for i,r in enumerate(history)]
+for start,end in zip(points,points[1:]):
+    line(c,*start,*end)
 for x,y in points:
-    c.setFillColor(TEAL); c.circle(x,H-y,4,fill=1,stroke=0)
-line(c,445,503,565,533,CYAN,[4,4])
-c.setFillColor(CYAN);c.circle(565,H-533,5,fill=1,stroke=0)
-text(c, 365, 476, 'Observed', 15, color=TEAL)
-text(c, 473, 494, 'Forecast', 16, 'Bold', CYAN)
-text(c, 132, 569, 'Earlier quarters', 14, color=MUTED)
-text(c, 422, 569, 'Now', 14, color=MUTED)
-text(c, 533, 569, 'Next quarter', 14, color=MUTED)
-line(c, 750, 548, 1220, 548, BORDER)
-line(c, 750, 460, 750, 548, BORDER)
-for i in range(38):
-    angle = i*2.39996
-    radius = 10+math.sqrt(i)*8
-    x = 905+math.cos(angle)*radius*1.6
-    y = 498+math.sin(angle)*radius*.65
-    c.setFillColor('#9FB6BC');c.circle(x,H-y,3.5,fill=1,stroke=0)
-for x,y in [(1110,466),(1170,521),(1070,537)]:
-    c.setFillColor('#B16B24');c.circle(x,H-y,5,fill=1,stroke=0)
-text(c, 855, 572, 'Common pattern', 15, color=MUTED)
-text(c, 1080, 448, 'Unusual', 16, 'Bold', '#B16B24')
-text(c, 100, 603, 'Select the 10% with lowest predicted growth.', 20, 'Bold', TEAL)
-text(c, 715, 603, 'Select the 10% with highest anomaly scores.', 20, 'Bold', TEAL)
-text(c, 90, 641, 'Same workload: choose 10 of every 100 banks. Then check their next-quarter growth.', 22)
-text(c, 90, 681, 'Would choosing unusual histories find more low-growth banks?', 25, 'Bold')
-text(c, 90, 712, 'Illustrative mini-plots, not measured model outputs or a claim that the detectors use clustering. Forecast inputs include prior growth.', 12, color=MUTED)
+    c.setFillColor(TEAL);c.circle(x,H-y,3,fill=1,stroke=0)
+line(c,*points[-1],x1,fy(forecast_balance),CYAN,[4,3])
+line(c,*points[-1],x1,points[-1][1],MUTED,[2,3])
+text(c, 500, 513, 'Zero: 16.426', 14, color=MUTED)
+text(c, 500, 545, f'Ridge: {forecast_balance:.3f}', 14, 'Bold', TEAL)
+text(c, 140, 577, 'Jun 2022', 13, color=MUTED)
+text(c, 386, 577, 'Mar 2024', 13, color=MUTED)
+text(c, 485, 577, 'Jun forecast', 13, color=MUTED)
+# Sorted empirical scores show exactly what determines the anomaly review list.
+score_rows = [r for r in csv.DictReader((ROOT/'experiments/review_history/outputs/scores.csv').open())
+              if r['date'] == '2024-03-31']
+score_rows.sort(key=lambda r: (float(r['PCA']), -int(r['CERT'])))
+assert len(score_rows) == 4548
+k = math.ceil(.1*len(score_rows))
+assert k == 455
+text(c, 700, 420, 'ANOMALY: actual March 2024 PCA scores', 21, 'Bold', TEAL)
+text(c, 700, 446, '4,548 banks · PCA reconstruction error (log scale)', 16, color=MUTED)
+px0, px1 = 760, 1215
+logs = [math.log10(float(r['PCA'])) for r in score_rows]
+lo,hi = math.floor(min(logs)),math.ceil(max(logs))
+py = lambda v: bottom-(v-lo)/(hi-lo)*(bottom-top)
+for exponent in range(lo,hi+1,2):
+    line(c,px0,py(exponent),px1,py(exponent),BORDER)
+    text(c,704,py(exponent)+4,f'10^{exponent}',12,color=MUTED)
+for i,value in enumerate(logs):
+    x = px0+i/(len(logs)-1)*(px1-px0)
+    c.setFillColor('#B16B24' if i >= len(logs)-k else '#9FB6BC')
+    c.circle(x,H-py(value),1,fill=1,stroke=0)
+cutoff = px0+(len(logs)-k)/(len(logs)-1)*(px1-px0)
+line(c,cutoff,top,cutoff,bottom,'#B16B24',[3,3])
+text(c,760,577,'Banks ordered by anomaly score',13,color=MUTED)
+text(c,1092,463,'Top 455',14,'Bold','#B16B24')
+text(c, 90, 611, 'Lowest forecast growth → review first.', 21, 'Bold', TEAL)
+text(c, 700, 611, 'Highest reconstruction error → review first.', 21, 'Bold', TEAL)
+text(c, 90, 647, 'Zero stays in the comparison: it predicts no change for every bank, so every rank is tied.', 21)
+text(c, 90, 684, 'Same 10% workload. Which list finds more low-growth banks next quarter?', 25, 'Bold')
+text(c, 90, 714, 'Sources: saved Study 1 predictions and Study 2 PCA scores. Historical forecast issued from March inputs; June outcome is not drawn.', 12, color=MUTED)
 c.showPage()
 base(c, 10)
 text(c, 90, 143, 'RIDGE STILL BUILT THE BEST REVIEW LIST.', 34, 'Heavy')
@@ -160,7 +176,8 @@ for i, (method, label) in enumerate(methods):
     text(c, 1130, y+5, f'{value} / 1,351', 17, color=MUTED)
 text(c, 105, 325, 'METHOD', 12, 'Bold', MUTED)
 text(c, 1130, 325, 'EXACT COUNTS', 12, 'Bold', MUTED)
-text(c, 90, 620, 'SCORECARD SO FAR', 17, 'Bold', MUTED)
+text(c, 90, 601, 'Zero forecast: all banks tied. No informative review order.', 19, 'Bold', MUTED)
+text(c, 90, 629, 'SCORECARD SO FAR', 17, 'Bold', MUTED)
 text(c, 90, 655, 'MAE: zero growth     |     RMSE: neural network     |     Review list: Ridge', 24, 'Bold', TEAL)
 text(c, 90, 697, '13,490 complete histories with observed outcomes; lists recalculated at 10% within each quarter. Reused 2024 data, not a fresh test.', 12, color=MUTED)
 text(c, 90, 716, 'Stochastic models: seed 42 shown. No other tested seed or version without deposit size exceeded Ridge. Anomalies do not establish distress.', 12, color=MUTED)
@@ -195,6 +212,16 @@ for y, year in zip([390, 450, 510], [2013, 2020, 2021]):
     c.rect(385+baseline*145, H-y-13, (v-baseline)*145, 32, fill=1, stroke=0)
     text(c, 403+v*145, y+10, f'{v:.3f}', 22, 'Bold')
     text(c, 175, y+10, f'{year}-Sep 2022', 22, 'Bold')
+zero_mae = next(float(r['MAE (pp)']) for r in csv.DictReader((ROOT/'growth_outputs/masterclass/extended_scores.csv').open()) if r['Model']=='Zero growth')
+zero_x = 385+zero_mae*145
+line(c,zero_x,365,zero_x,533,'#496B9D',[3,3])
+text(c, 890, 591, f'Zero MAE: {zero_mae:.3f} pp', 17, 'Bold', '#496B9D')
+# Arrow points to the additional error for the 2020-start fit.
+arrow_x = 385+(window[2013]+window[2020])/2*145
+line(c, 1145, 413, arrow_x, 445, '#C23830')
+line(c, arrow_x,445,arrow_x+13,433,'#C23830')
+line(c, arrow_x,445,arrow_x+17,448,'#C23830')
+text(c, 1030, 397, f"+{window[2020]-window[2013]:.3f} pp", 18, 'Bold', '#C23830')
 centered(c, 617, 'AND... THE ERRORS GOT BIGGER.', 30, 'Heavy', '#B16B24')
 centered(c, 650, 'Both shorter windows had higher MAE with all three seeds. Ridge had higher MAE too.', 21)
 centered(c, 683, 'So what if we keep the history, but let the forecast know the quarter?', 23, 'Bold', TEAL)

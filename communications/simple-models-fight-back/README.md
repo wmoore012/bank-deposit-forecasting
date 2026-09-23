@@ -1,7 +1,7 @@
 # Simple Models Fight Back
 
 The current carousel is `simple_models_fight_back_data_science_story_v6.pdf`,
-a 13-page edition. It adds the approved anomaly-detection setup, forecast and feature-space mini-plots with explicit selection rules
+a 13-page edition. It adds the approved anomaly-detection setup, observed bank history, saved forecast, and empirical PCA-score plots with explicit selection rules
 at equal review capacity, and the measured outcome
 comparison after the deposit-size page. The calendar-rule ending is preserved. Page 11 now uses horizontal stacks showing
 full-window MAE plus the increase for each shorter window, using the saved
@@ -42,5 +42,10 @@ exploratory. The v6 additions were checked as rendered PDF pages, not as HTML.
 
 Pages 8 and 10 distinguish the review-list task (higher capture is better) from
 forecast error (lower MAE is better). The Study 2 chart includes both simple
-controls as well as all five learned methods. Mini-plots on page 9 are labeled
-schematic illustrations; they are not empirical projections or forecasts.
+controls as well as all five learned methods. Page 9 plots the eight saved Young Americans Bank balances, its saved Ridge
+forecast and zero forecast, and all 4,548 March PCA scores. The 455 highest
+scores are highlighted. No invented curves or clusters are used.
+
+Run `test_story_pdf.py` with Python containing pypdf and pdfplumber to check
+exported labels, source-derived forecast values, benchmark visibility, task
+direction, and paired-panel alignment. Visually inspect the rendered PDF too.

@@ -15,3 +15,8 @@ masterclass_outputs/
 /career/*RESUME*.md
 
 /.finetune/
+
+# Private working history and superseded deliverables
+.local-archive/
+.internal/
+/exports/

@@ -22,7 +22,8 @@ class StoryEvidenceTests(unittest.TestCase):
         page = PdfReader(PDF).pages[7].extract_text()
         self.assertIn('HIGHER IS BETTER', page)
         self.assertNotIn('LOWER IS BETTER', page)
-        self.assertIn('EVERY BANK TIED', page)
+        self.assertIn('ZERO GIVES EVERY BANK THE SAME ANSWER.', page)
+        self.assertIn('IT CANNOT TELL ME WHOM TO REVIEW FIRST.', page)
 
     def test_panels_share_title_and_unit_baselines(self):
         import pdfplumber

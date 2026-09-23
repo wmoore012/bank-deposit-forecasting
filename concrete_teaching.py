@@ -75,8 +75,8 @@ This was one bounded adaptation recipe. Validation selected the checkpoint befor
 }
 
 GUIDES = {
-'cash_balance_sheet':'Read the entire block as USD 100 of assets. The blue USD 15 is cash available now; the other USD 85 represents loans that borrowers will repay over time.',
-'withdrawal_shortfall':'Read the bar as the USD 20 request. Blue supplies USD 15. Amber marks the remaining USD 5 the bank must obtain.',
+'cash_balance_sheet':'This is an invented USD 100 example. The blue USD 15 is cash available now; the other USD 85 represents loans that borrowers will repay over time.',
+'withdrawal_shortfall':'This is an invented request, not a real withdrawal. Blue supplies USD 15. Amber marks the USD 5 gap in this example.',
 'opening_review':'Each bar counts selected banks that later fell in the lowest-growth group. All methods have 454 March selections. The random bar is an expectation, so its count can be fractional.',
 'history_roles':'Read left to right through predictor dates. The long earlier interval is training. The two short later intervals choose settings and measure reused historical performance; their labels count bank-quarter examples.',
 'reporting_banks_time':'The horizontal axis is the reporting quarter; height counts banks with a source report. A falling count changes the population represented by later summaries. It does not identify why individual banks disappear.',

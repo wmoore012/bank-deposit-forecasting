@@ -165,6 +165,11 @@ import matplotlib.dates as mdates
 a.xaxis.set_major_locator(mdates.YearLocator(3))
 a.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 a.set_xlim(pd.Timestamp("2013-01-01"), pd.Timestamp("2025-09-01"))
+# Explain the deliberate gaps directly on the exported timeline page.
+f.text(0.075, 0.255,
+       textwrap.fill("December 2022 and December 2023 are excluded as predictor dates because their next-quarter answers cross into the following stage.", 76),
+       fontsize=11, va="top", linespacing=1.4, color=INK)
+
 
 # 04: teach inputs before equations.
 f = page(

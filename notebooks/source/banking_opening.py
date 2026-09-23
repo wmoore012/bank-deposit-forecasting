@@ -15,8 +15,8 @@ for amount, left, label, color in [
         text=[label], textposition="inside", marker_color=color, showlegend=False))
 fig.update_layout(barmode="overlay")
 fig.update_xaxes(range=[0, 100], title="Dollars of assets")
-chart(fig, "cash_balance_sheet", "Imagine a bank with USD 100 worth of assets",
-      "It has USD 15 available in cash. Borrowers owe it another USD 85.", height=410)
+chart(fig, "cash_balance_sheet", "Example: a bank with USD 100 worth of assets",
+      "Invented numbers for one balance-sheet example. USD 15 is cash today; USD 85 is loans repaid later.", height=410)
 
 # %% NOTEBOOK CELL
 # The request arrives before the loans have been repaid.
@@ -29,41 +29,48 @@ fig.add_trace(go.Bar(x=[cash_available], y=["How to pay"], orientation="h",
 fig.add_trace(go.Bar(x=[cash_shortfall], y=["How to pay"], orientation="h",
     text=["5 needed"], textposition="inside", marker_color="#A86223", name="Additional cash"))
 fig.update_layout(barmode="stack", showlegend=False)
-fig.update_xaxes(range=[0, 20], title="Customer request: USD 20")
-chart(fig, "withdrawal_shortfall", "USD 20 requested minus USD 15 available leaves USD 5 to obtain",
-    "USD 20 requested minus USD 15 available leaves USD 5 to obtain.", height=410)
-takeaway("The bank needs another USD 5 in cash",
-    "The loans are valuable assets, but their repayments may arrive years from now. "
-    "To complete today's withdrawal, the bank could borrow cash or sell an asset. "
-    "Whether it can do that, and at what cost, matters.")
+fig.update_xaxes(range=[0, 20], title="Invented customer request: USD 20")
+chart(fig, "withdrawal_shortfall", "Example: USD 20 requested, USD 15 available, USD 5 to obtain",
+    "Invented numbers. Blue is cash already available. Amber is the extra cash this example needs.", height=410)
+takeaway("In this example, the bank still needs USD 5 in cash",
+    "This is a teaching example, not a real withdrawal or a claim about a real bank. "
+    "The USD 85 in loans is valuable, but it may be repaid years from now. "
+    "For this example, the remaining USD 5 could come from borrowing or selling an asset. The cost and availability would need evidence.")
 
 # %% NOTEBOOK CELL
 # Now introduce how the assets are financed, after the cash problem is clear.
-question_card(title="Where does equity enter this example?", theme=theme,
-    body="The bank owes customers USD 90 in deposits. Its assets total USD 100. "
-         "Subtract what it owes: USD 100 minus USD 90 leaves USD 10 of equity. "
-         "The cash asset is still USD 15.")
+question_card(title="Okay, so where is equity in our made-up bank?", theme=theme,
+    body="We are still using the same invented USD 100 example. The bank owes customers USD 90 in deposits. "
+         "That leaves USD 10 of equity. The cash asset is still USD 15. Equity explains the difference. "
+         "It does not create another USD 10 of cash.")
 wm_formula_card(
-    title="A $20 withdrawal needs $5 beyond the available cash",
+    title="So what fills the USD 5 gap in this example?",
+    subtitle="Still invented numbers. Equity explains the balance-sheet difference. It is not another pile of cash.",
     theme=theme,
     items=[
         {
-            "label": "Cash requirement",
-            "fallback": "$20 requested − $15 cash available = $5 to obtain",
+            "label": "Cash gap",
+            "latex": r"\$20 - \$15 = \$5",
+            "fallback": "USD 20 requested minus USD 15 cash available equals USD 5 to obtain.",
         },
-        {"label": "Equity", "fallback": "$100 assets − $90 liabilities = $10 equity"},
         {
-            "label": "If the bank borrows $5 and pays $20",
-            "fallback": "$85 assets = $70 remaining deposits + $5 borrowing + $10 equity",
+            "label": "Equity",
+            "latex": r"\$100 - \$90 = \$10",
+            "fallback": "USD 100 in assets minus USD 90 in deposits equals USD 10 in equity.",
+        },
+        {
+            "label": "After borrowing and paying",
+            "latex": r"\$85 = \$70 + \$5 + \$10",
+            "fallback": "USD 85 in assets equals USD 70 in deposits, USD 5 in borrowing, and USD 10 in equity.",
         },
     ],
 )
 wm_counterintuitive_card(
-    title="Can the $10 equity balance pay the withdrawal?",
+    title="Can the USD 10 equity balance pay the withdrawal?",
     theme=theme,
     why_misread="Equity sounds like a separate pile of spare cash.",
-    ordinary_process="Equity is the difference between assets and liabilities. In this example the cash asset is $15; the loans total $85.",
-    conclusion_boundary="The bank needs another $5 of cash, for example from borrowing or selling an asset. Equity absorbs losses if assets lose value. Funding cost and availability require their own investigation.",
+    ordinary_process="Equity is the difference between assets and liabilities. In this example the cash asset is USD 15; the loans total USD 85.",
+    conclusion_boundary="The bank needs another USD 5 of cash, for example from borrowing or selling an asset. Equity absorbs losses if assets lose value. Funding cost and availability require their own investigation.",
     kicker="Cash and loss absorption",
     chip_text="LOOK TWICE",
 )

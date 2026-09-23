@@ -16,19 +16,19 @@ Some assets are loans that customers will repay over years. Payments and withdra
 
 **That makes deposit changes worth understanding.** A person examining the bank would also consider its available funding, assets, customers, and institutional history.
 
-**This project asks whether bank reports can help that person decide where to look first.**
+**So here is the question. Can bank reports help that person decide where to look first?**
 
-### Imagine a bank with &#36;100 worth of assets
+### A made-up USD 100 bank
 
-It holds **&#36;15 in cash**. Borrowers owe it **&#36;85 in loans**, which they will repay over time.
+For one teaching example, give the bank **USD 100 in assets**. It has **USD 15 in cash**. Borrowers owe it **USD 85 in loans**, which they will repay over time.
 
-Now customers ask to withdraw **&#36;20**.
+Now, in this invented example, a customer asks to withdraw **USD 20**.
 
-**How much more cash does the bank need?** **&#36;5.** It has &#36;15 available and needs &#36;20. The first visual separates money available today from loans repaid later.
+**How much extra cash does this example need?** **USD 5.** The first visual separates money available today from loans repaid later. These numbers are not a real bank, a recorded withdrawal, or a forecast.
 
-We introduce the bank's &#36;90 deposits and &#36;10 equity after that cash problem is clear. Equity measures the difference between assets and liabilities; it absorbs losses when assets lose value.
+Keep the same made-up bank for one more step. It owes customers USD 90 in deposits, so USD 10 is equity. That explains the balance-sheet difference. It does not add USD 10 to the cash pile.
 
-Deposits help fund bank assets. Lending can itself create deposits; the [Bank of England explains that mechanism](https://www.bankofengland.co.uk/quarterly-bulletin/2014/q1/money-creation-in-the-modern-economy). Our example isolates cash availability. The [Federal Reserve’s funding study](https://www.federalreserve.gov/econres/notes/feds-notes/assessing-bank-resilience-to-a-funding-shock-20260217.html) explains how replacement funding can raise costs in a modeled funding shock. Neither source evaluates this project's forecasts.
+The example isolates cash availability. Lending can itself create deposits; the [Bank of England explains that mechanism](https://www.bankofengland.co.uk/quarterly-bulletin/2014/q1/money-creation-in-the-modern-economy). The [Federal Reserve’s funding study](https://www.federalreserve.gov/econres/notes/feds-notes/assessing-bank-resilience-to-a-funding-shock-20260217.html) explains how replacement funding can raise costs in a modeled funding shock. Neither source evaluates this project's forecasts.
 
 **The answer from the original experiment:** assume time to examine **10 of every 100 banks**. Random selection would find about **one** bank whose next-quarter deposit growth finishes in the lowest 10%. Ridge and the neural network found about **two**, averaged across three historical quarters of 2024. A human would investigate the movement and decide whether it needs attention. The 10% examination capacity is hypothetical; no operational savings were measured.
 

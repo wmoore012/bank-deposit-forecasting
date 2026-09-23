@@ -13,7 +13,7 @@ sections=[]
 def section(title, prose, code='', *, advanced=False):
     sections.append((title,dedent(prose).strip(),dedent(code).strip(),advanced))
 
-section('Can a small neural network anticipate next quarter’s deposit growth?', '''
+section('If I can only review 10% of banks, can reports help me choose?', '''
 You put money in a bank. The bank uses deposits to help fund loans and other assets.
 Now imagine some of that funding leaves. Replacing it can cost more. That is a real forecasting problem.
 
@@ -380,7 +380,7 @@ def log_scores(y_log, pred_log):
 
 # %% NOTEBOOK CELL
 preview_card(
-    title='Can the network earn its extra complexity?',
+    title='Okay, so what are we trying to predict?',
     theme=theme,
     body=(
         'Every model gets the same dates and outcomes. We will judge the '
@@ -393,7 +393,7 @@ preview_card(
     ],
 )
 ''')
-section('1 · Can fifteen years of reports tell one consistent story?', '''
+section('1 · So can 2013 and 2024 belong in one experiment?', '''
 **We chose 2013–2024 for the main experiment.** The 2010–2012 reports stay in a separate audit. Here is how we decided:
 1. **Start with the same kind of report.** Some older institutions used a different reporting form. The FDIC documented their switch to Call Reports in 2012.
 2. **Check that the numbers mean the same thing.** Matching column names alone cannot prove that older forms measured all five financial inputs the same way. That historical mapping is still unverified.
@@ -733,7 +733,7 @@ takeaway(
     ),
 )
 ''')
-section('2 · What happened when the first experiment counted dollars?', '''
+section('2 · Okay, but how much of the old result was just bank size?', '''
 **Large banks can dominate a dollar-based score even when the model learns little beyond size.**
 A 1% decline at a bank with USD 100 billion in deposits is USD 1 billion.
 A 10% decline at a bank with USD 100 million is USD 10 million.
@@ -948,8 +948,8 @@ concentration.to_csv(
     index=False,
 )
 ''')
-section('3 · Which rows can actually teach us about next quarter?', '''
-**A missing next report is an unknown outcome.** It can reflect a merger, closure, reporting gap,
+section('3 · So which bank-quarters actually give us a next-quarter answer?', '''
+**So first, can we see the next-quarter answer?** A missing next report is an unknown outcome. It can reflect a merger, closure, reporting gap,
 or the end of our file. We separate these cases as far as the data allows.
 
 A certificate connects reports filed under the same institution identifier. Mergers, name changes, and other
@@ -1169,7 +1169,7 @@ takeaway(
     ),
 )
 ''')
-section('4 · How do we keep tomorrow out of today’s inputs?', '''
+section('4 · The future has to stay in the future.', '''
 **Give each model only information from the predictor quarter or earlier.**
 If a row describes September, its label describes December. December must not sneak into September’s features.
 
@@ -1279,8 +1279,8 @@ takeaway(
     ),
 )
 ''')
-section('5 · Dollars, percentages, or logs: what are we asking?', '''
-**Choose the meaning before looking for a better score.** Start with USD 100 million in deposits.
+section('5 · A tiny starting balance can make percentage growth look insane.', '''
+**Okay, but what are we actually predicting?** Start with USD 100 million in deposits.
 If next quarter has USD 90 million, the change is −USD 10 million, growth is −10%, and log growth is about −0.105.
 Each describes the same observation. Each asks the model to care about something different.
 
@@ -1472,18 +1472,49 @@ target_summary = ordered_rows(
         ],
     },
 )
+# A colored range chart gives the reader the distribution before its exact receipt.
+range_colors = {
+    'Dollar change (USD million)': '#6E8BA5',
+    'Signed growth (%)': '#D17A3A',
+    'Log growth': '#0B7A75',
+}
+fig = go.Figure()
+for _, row in target_summary.iterrows():
+    target = row['Target']
+    fig.add_trace(go.Scatter(
+        x=[row['1st percentile'], row['99th percentile']],
+        y=[target, target],
+        mode='lines',
+        line=dict(color=range_colors[target], width=16),
+        hovertemplate=(
+            f'{target}<br>Middle 98% from %{{x[0]:,.3f}} to '
+            f'%{{x[1]:,.3f}}<extra></extra>'
+        ),
+        showlegend=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=[row['Median']], y=[target], mode='markers',
+        marker=dict(color='#172F3E', size=13, symbol='diamond'),
+        hovertemplate=f'{target}<br>Median: %{{x:,.3f}}<extra></extra>',
+        showlegend=False,
+    ))
+fig.update_xaxes(title='Each target uses its own units; the colored band is the middle 98%, the diamond is the median')
+fig.update_yaxes(title='')
+fig.update_layout(margin=dict(l=20, r=30, t=20, b=70))
+chart(
+    fig,
+    'target_ranges',
+    'How much do the candidate targets spread?',
+    'The log target keeps the same rows but puts unusually large proportional jumps on a learnable scale.',
+    height=430,
+)
+
 table(
     target_summary[['Target', '1st percentile', 'Median', '99th percentile', 'Maximum']],
-    'Training targets: full-range arithmetic',
+    'Exact target ranges used for the training decision',
     {
         column: '{:,.4f}'
-        for column in [
-            'Minimum',
-            '1st percentile',
-            'Median',
-            '99th percentile',
-            'Maximum',
-        ]
+        for column in ['Minimum', '1st percentile', 'Median', '99th percentile', 'Maximum']
     },
 )
 target_summary.to_csv(OUT / 'target_comparison.csv', index=False)
@@ -1552,14 +1583,39 @@ shown_extremes = shown_extremes.drop(
     'next_deposits': 'Next (USD k)',
     'growth': 'Growth',
 })
+# The connected dots make the scale change visible before the audit table names it.
+plot_extremes = shown_extremes.sort_values('Growth', key=lambda values: values.abs(), ascending=True).copy()
+fig = go.Figure()
+for _, row in plot_extremes.iterrows():
+    label = f"{row['Bank']} ({row['Report date']:%Y Q%q})" if hasattr(row['Report date'], 'quarter') else row['Bank']
+    fig.add_trace(go.Scatter(
+        x=[row['Start (USD k)'] / 1000, row['Next (USD k)'] / 1000],
+        y=[row['Bank'], row['Bank']],
+        mode='lines+markers',
+        line=dict(color='#D17A3A', width=4),
+        marker=dict(size=[10, 15], color=['#6E8BA5', '#D17A3A']),
+        hovertemplate=(
+            f"{row['Bank']}<br>Start: %{{x[0]:,.1f}} USD million"
+            f"<br>Next quarter: %{{x[1]:,.1f}} USD million"
+            f"<br>Growth: {row['Growth']:+.1%}<extra></extra>"
+        ),
+        showlegend=False,
+    ))
+fig.update_xaxes(type='log', title='Domestic deposits, USD million, log scale')
+fig.update_yaxes(title='Bank-quarter, ordered by absolute growth')
+fig.update_layout(margin=dict(l=20, r=30, t=20, b=65))
+chart(
+    fig,
+    'largest_training_changes',
+    'What do the six largest percentage changes look like in dollars?',
+    'Blue is the starting report. Orange is the next quarter. The log axis keeps the small starts and large next balances visible together.',
+    height=500,
+)
+
 table(
     shown_extremes,
-    'Six largest training changes · balances in USD thousands',
-    {
-        'Start (USD k)': '{:,.0f}',
-        'Next (USD k)': '{:,.0f}',
-        'Growth': '{:+.2%}',
-    },
+    'Exact values behind the six largest percentage changes',
+    {'Start (USD k)': '{:,.0f}', 'Next (USD k)': '{:,.0f}', 'Growth': '{:+.2%}'},
     wrap_columns={'Bank': 280},
 )
 
@@ -1607,7 +1663,7 @@ takeaway(
     ),
 )
 ''')
-section('6 · What does a network actually learn?', '''
+section('6 · So what does a network actually learn?', '''
 **It adjusts numbers so its predictions make smaller mistakes.** Start with one neuron:
 multiply each input by a weight, add the results, then add a bias.
 With inputs 2 and 3, weights 0.5 and −0.2, and bias 0.1, the output is 0.5.
@@ -1659,7 +1715,7 @@ fig.update_xaxes(visible=False, range=[-0.5, 3.5])
 fig.update_yaxes(visible=False, range=[-0.3, 0.5])
 chart(fig,'architecture','Five inputs become one growth forecast','737 trainable weights and biases',height=380)
 ''')
-section('7 · Put the five inputs on comparable scales', '''
+section('7 · Before modeling anything, what do the five clues look like?', '''
 **The five inputs use very different units.** Scaling puts a deposit balance and an equity ratio on comparable numerical footing.
 Standardization subtracts a training mean and divides by a training standard deviation.
 A missing predictor gets its training median. Validation and historical rows reuse those exact values.
@@ -2140,25 +2196,32 @@ validation_scores = ordered_rows(
     category_orders={'Model': MODEL_ORDER},
 )
 
-table(
-    validation_scores,
-    'Validation chooses; historical evaluation waits',
-    {'MAE (pp)': '{:.4f}', 'RMSE (pp)': '{:.4f}'},
-)
-
 fig = px.scatter(
     validation_scores,
     x='MAE (pp)',
-    y='Model',
+    y='RMSE (pp)',
     color='Model',
+    text='Model',
     color_discrete_map=MODEL_COLORS,
 )
-fig.update_layout(showlegend=False)
+fig.update_traces(textposition='top center', marker=dict(size=15))
+fig.add_vline(x=validation_scores['MAE (pp)'].median(), line_dash='dot', line_color='#8A949B')
+fig.add_hline(y=validation_scores['RMSE (pp)'].median(), line_dash='dot', line_color='#8A949B')
+fig.update_xaxes(title='Typical miss: MAE in percentage points, lower is better')
+fig.update_yaxes(title='Large-miss penalty: RMSE in percentage points, lower is better')
+fig.update_layout(showlegend=False, margin=dict(l=30, r=30, t=20, b=70))
 chart(
     fig,
     'validation',
-    'Validation errors compare every method on the same bank-quarters',
-    '2023 Q1–Q3 predictor rows; lower MAE is better',
+    'Which model has the smallest typical miss and fewest large misses?',
+    'Each dot is one method on the same 2023 Q1–Q3 bank-quarters. The lower-left region is better on both measures.',
+    height=500,
+)
+
+table(
+    validation_scores.sort_values('MAE (pp)'),
+    'Exact validation errors after the visual comparison',
+    {'MAE (pp)': '{:.4f}', 'RMSE (pp)': '{:.4f}'},
 )
 
 best_epoch = int(np.argmin(history['val_loss']) + 1)
@@ -2201,19 +2264,32 @@ validation_audit.nlargest(10, 'Squared MLP error').to_csv(
     index=False,
 )
 
+error_leaders = validation_audit.nlargest(10, 'Squared MLP error').copy()
+error_leaders['Label'] = error_leaders['NAME'].str.title() + ' · ' + error_leaders['date'].dt.strftime('%Y Q%q')
+fig = px.bar(
+    error_leaders.sort_values('Share of squared error'),
+    x='Share of squared error',
+    y='Label',
+    orientation='h',
+    color='Share of squared error',
+    color_continuous_scale=['#D9E8E5', '#0B7A75', '#D17A3A'],
+    text='Share of squared error',
+)
+fig.update_traces(texttemplate='%{text:.1%}', textposition='outside', cliponaxis=False)
+fig.update_xaxes(title='Share of total squared error', tickformat='.0%', range=[0, min(1.08, error_leaders['Share of squared error'].max() * 1.12)])
+fig.update_yaxes(title='Bank-quarter, ordered from largest contribution')
+fig.update_layout(coloraxis_showscale=False, margin=dict(l=30, r=70, t=20, b=65))
+chart(
+    fig,
+    'validation_error_concentration',
+    'Which bank-quarters drive the model’s large-error score?',
+    'Each bar is one validation outcome. Squared error gives very large misses much more weight, so one bar can dominate the total.',
+    height=510,
+)
+
 table(
-    validation_audit.nlargest(3, 'Squared MLP error')[
-        [
-            'CERT',
-            'NAME',
-            'date',
-            'DEPDOM',
-            'next_deposits',
-            'growth',
-            'Share of squared error',
-        ]
-    ],
-    'One extreme balance jump dominates validation squared error',
+    error_leaders.head(3)[['CERT', 'NAME', 'date', 'DEPDOM', 'next_deposits', 'growth', 'Share of squared error']],
+    'Exact values for the three largest contributors to validation squared error',
     {'growth': '{:+.1%}', 'Share of squared error': '{:.1%}'},
 )
 
@@ -2262,13 +2338,13 @@ takeaway(
     ),
 )
 ''')
-section('8 · Does the neural network improve the forecast?', '''
-**Now open the frozen historical evaluation.** Every model predicts the same bank-quarters.
+section('8 · And then zero growth won MAE.', '''
+**Okay. This is the historical test.** Every model predicts the same bank-quarters.
 The two dot panels carry the exact scores; the full score table is saved as a CSV.
 The scatter asks a different question: do individual predictions move with reality?
 
-**Two scores can disagree without either being wrong.** MAE averages the size of each miss.
-RMSE squares each miss first, so a few large misses exert more influence. After the
+**Wait. Two scores can disagree.** MAE is the average size of a forecast miss. Lower is better.
+RMSE gives larger misses more weight, so a few big misses can move it more. After the
 scorecard, we will group errors by size to see where the MLP helped and hurt.
 
 **What would make us investigate a bank?** A 4.3% improvement in an aggregate
@@ -2286,7 +2362,7 @@ Every eligible evaluation row remains in the scores and saved predictions.
 ''',r'''
 # Compare the four forecasts on the same later bank-quarters.
 question_card(
-    title='Did the MLP reduce error on later quarters?',
+    title='Okay, did the MLP actually reduce error on later quarters?',
     theme=theme,
     body=(
         'Score every model on the same bank-quarters. Read MAE and RMSE '
@@ -2407,7 +2483,7 @@ assert large_error_check.loc[
 # %% NOTEBOOK CELL
 # EXEMPLAR: analytical-question
 question_card(
-    title='How can the MLP win RMSE but lose MAE?',
+    title='Wait. How can the MLP win RMSE but lose MAE?',
     theme=theme,
     body=(
         'A 10-point miss contributes 10 to absolute error but 100 to '
@@ -2624,7 +2700,7 @@ takeaway(
     f'{mae[winner]:.3f} pp',
 )
 ''')
-section('9 · Does the average hide weak quarters or weak outcomes?', '''
+section('9 · Okay, but where do the average scores hide the biggest misses?', '''
 **A small average miss can coexist with poor forecasts when deposits fall sharply.**
 First compare quarters. Then look at the realized bottom quarter and bottom tenth of growth in each quarter.
 These groups are defined after the outcome occurs. They diagnose errors; they do not prove advance warning.
@@ -2730,7 +2806,7 @@ tail_errors.to_csv(OUT / 'tail_errors.csv', index=False)
 weak=tail_errors.loc[(tail_errors.Slice=='Realized bottom 10%')&(tail_errors.Model=='MLP')].iloc[0]
 takeaway('Check the weak-outcome error before using the forecast',f'The MLP misses by {weak["MAE (pp)"]:.3f} pp on average across {int(weak.Rows):,} bottom-decile bank-quarters, compared with {mae["MLP"]:.3f} pp overall. These groups were identified using realized outcomes.')
 ''')
-section('10 · Could we identify weak growth beforehand?', '''
+section('10 · Good MAE is nice. Can it tell us who to look at first?', '''
 **Rank using predictions first; compare with outcomes second.** For each quarter, select the lowest
 predicted-growth 10% of banks. Then count how many actually belong to the lowest-growth 10%.
 This is the decision check the 4.3% RMSE figure cannot provide: at a capacity
@@ -2749,7 +2825,7 @@ A constant forecast has no defined rank correlation. Leave that value missing.
 ''',r'''
 # Fix the quarterly review capacity before looking at the rankings.
 question_card(
-    title='Which selected banks later had the lowest deposit growth?',
+    title='So which selected banks actually had the lowest growth later?',
     theme=theme,
     body='Rank banks from predicted growth first. Then compare that list with the realized bottom decile inside the same quarter.',
     kicker='Identification',
@@ -2874,7 +2950,7 @@ takeaway(
     'Three reused quarters cannot establish which model would lead later.',
 )
 ''')
-section('Can anomaly detection help decide where to look?', '''
+section('Okay, but is an unusual report a different question?', '''
 **Yes, it is a useful next experiment.** The forecast asks which bank may have weak
 growth next quarter. An anomaly score asks whose *observed* report looks unusual
 relative to its own past or comparable banks. Those are different review questions.
@@ -2887,7 +2963,7 @@ to review today.
 ''',r'''
 # EXEMPLAR: analytical-question
 question_card(
-    title='Would anomaly detection give us a better review list?',
+    title='So would anomaly detection change who we review?',
     theme=theme,
     body=(
         'Possibly. First decide whether the job is to anticipate a future '
@@ -2960,7 +3036,7 @@ takeaway(
     'and a clear definition of a useful review.',
 )
 ''')
-section('11 · What did we learn, and what would we do next?', '''
+section('11 · Okay. So what did we actually learn?', '''
 **The small neural network did not establish a dependable forecasting advantage on the reused 2024
 holdout.** A zero-growth forecast had the lowest MAE at **3.60 percentage points**. The MLP scored **3.63
 MAE** and had the lowest RMSE at **6.43 points**. Ridge scored **3.64 MAE** and **6.51 RMSE**; persistence
@@ -3029,7 +3105,7 @@ summary={'source_sha256':source_hash,'target':'log growth; errors reported in or
 (OUT/'run_summary.json').write_text(json.dumps(summary,indent=2))
 print('Audit passed: source unchanged, target arithmetic reconciled, predictions finite, results saved.')
 ''')
-section('Deeper lesson · Does a different random start change the answer?', '''
+section('Deeper lesson · But how much does a different random start change it?', '''
 **A seed changes the network’s initial weights.** Fit the same architecture with seeds 7 and 99,
 in addition to the primary seed 42. Compare their validation errors only. Keep seed 42 as the primary
 historical model even if another start looks better.
@@ -3052,7 +3128,7 @@ chart(fig,'seeds','Three starting weights produce different validation errors','
 seed_results.to_csv(OUT/'seed_sensitivity.csv',index=False)
 takeaway('Three starts, one dataset',f'Validation MAE ranges from {seed_results["MAE (pp)"].min():.3f} to {seed_results["MAE (pp)"].max():.3f} pp across the three fixed starts. Seed 42 remains the primary fit.')
 ''',advanced=True)
-section('Deeper lesson · How uncertain is the MLP–Ridge difference?', '''
+section('Deeper lesson · But how sure are we about MLP versus Ridge?', '''
 **Resample whole banks so their repeated reports stay together.** Sampling individual rows would pretend
 that several observations of one bank are independent.
 
@@ -3086,7 +3162,7 @@ chart(fig,'bootstrap','The MLP–Ridge uncertainty interval crosses zero','500 p
 interval.to_csv(OUT/'bootstrap_interval.csv',index=False)
 takeaway('Uncertainty belongs beside the difference',f'The observed difference is {difference:+.4f} pp; the conditional 95% interval is [{low:+.4f}, {high:+.4f}] pp. '+('The interval crosses zero.' if low<=0<=high else 'The interval stays on one side of zero.')+' Three quarters still limit temporal generalization.')
 ''',advanced=True)
-section('Deeper lesson · Can uninsured deposits enter the model yet?', '''
+section('Deeper lesson · What does a zero in this column actually mean?', '''
 **Missing reporting can encode eligibility.** The FDIC’s [reporting guidance](https://www.fdic.gov/news/financial-institution-letters/2023/estimated-uninsured-deposits-reporting-expectations)
 notes that institutions below USD 1 billion may not report estimated uninsured deposits.
 The [2024 RC-O instructions](https://www.fdic.gov/system/files/2024-05/031-041-324-rc-o.pdf) define the reporting item.
@@ -3197,7 +3273,7 @@ wm_counterintuitive_card(
 )
 
 ''',advanced=True)
-section('Appendix · Keep the useful questions from Experiment 0', '''
+section('Appendix · So what did the old dollar experiment actually prove?', '''
 The [original masterclass](experiments/experiment_0/FDIC_Deep_Learning_Masterclass.ipynb) preserves the complete
 executed dollar-runoff experiment and its exact outputs. `Assign1.ipynb` is unchanged.
 
@@ -3336,7 +3412,7 @@ takeaway('The full evaluation reveals a failure the smoke test missed',
 # %% NOTEBOOK CELL
 # EXEMPLAR: analytical-question
 question_card(
-    title='Would a different pretrained forecaster help?', theme=theme,
+    title='What if a pretrained forecaster gets a shot?', theme=theme,
     body='We test Chronos-Bolt Small with the same historical log balances, one-quarter horizon, median point forecast, and all 13,532 outcomes. Its T5-based numerical forecasting architecture gives us a second approach. We do not select settings using these outcomes.',
     kicker='A new experiment, with the same measurement contract',
 )

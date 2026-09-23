@@ -119,6 +119,13 @@ def teach_story(sections):
             False,
         ),
     )
+    sections.insert(conclusion_index + 2, (
+        "Follow-up · But wait. What if we train on only the recent years?",
+        "In volatile economic times, older examples might be less useful. So I tried data starting in 2020, then 2021. "
+        "Same model settings. Same 2023 validation. Same 2024 evaluation. And... the errors got bigger. "
+        "This is an exploratory follow-up after examining 2024, not a fresh test of 2026 conditions.",
+        visible_source("training_window_lesson.py"), False,
+    ))
     adapted_index = next(i for i, item in enumerate(sections) if item[0].startswith("Bonus · Does"))
     sections.insert(
         adapted_index + 1,

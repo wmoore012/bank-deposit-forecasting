@@ -15,4 +15,4 @@ The two financial extracts have identical 2020–2024 overlap. The long extract 
 
 `download_supplement.py` downloads reporting context separately, preserving the original financial CSVs. It verifies quarterly totals, dates, and unique keys. A newer metadata fetch can reflect revisions; the committed supplement is the reproducibility snapshot. ACTEVT is a structural-event clue, not a complete history or a definitive disappearance cause.
 
-The primary model retains 2020–2024. This leaves few distinct regimes, even with many bank-quarter rows. All results use revised retrospective reports without release timestamps. The 2024 holdout was already inspected by the earlier project.
+The primary model uses 2013–2024 after the reporting conversion. This leaves few distinct regimes, even with many bank-quarter rows. All results use revised retrospective reports without release timestamps. The 2024 holdout was already inspected by the earlier project.

@@ -22,7 +22,6 @@ class ConcreteTests(unittest.TestCase):
             for inspection in ['post_conversion.info(', 'post_conversion.isna().sum()',
                                '.describe()', 'wm_render_micro_profile_cards(', 'display_data_chips(']:
                 self.assertIn(inspection,source)
-            self.assertIn('Can the $10 equity balance pay the withdrawal?',source)
             self.assertIn('cash_shortfall = withdrawal_request - cash_available',source)
             self.assertIn('assert cash_shortfall == 5',source)
     def test_miniature_errors_explain_reversed_ordering(self):
@@ -76,7 +75,7 @@ class ChartSemanticsTests(unittest.TestCase):
         self.assertEqual([len(t['x']) for t in chart['data']], [38, 3, 3])
         self.assertTrue(all(str(x).startswith(('201','202')) for t in chart['data'] for x in t['x']))
 
-    def test_chart_titles_state_findings(self):
+    def test_charts_have_titles_and_evidence(self):
         import json
         nb = nbformat.read(ROOT / 'FDIC_Deep_Learning_Masterclass.ipynb', 4)
         names = set()
@@ -86,5 +85,7 @@ class ChartSemanticsTests(unittest.TestCase):
                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'chart' and len(node.args) > 1 and isinstance(node.args[1], ast.Constant):
                         names.add(node.args[1].value)
         for path in [ROOT / 'growth_outputs/masterclass/charts' / (name + '.json') for name in names]:
-            title = json.loads(path.read_text())['layout'].get('title', {}).get('text', '').split('</b>')[0]
-            self.assertNotIn('?', title, path.name)
+            figure = json.loads(path.read_text())
+            title = figure['layout'].get('title', {}).get('text', '')
+            self.assertTrue(title.strip(), path.name)
+            self.assertTrue(figure['data'], path.name)

@@ -129,7 +129,9 @@ class ExperimentTests(unittest.TestCase):
             self.assertIn(field, json.dumps(fig['layout']))
 
         html='\n'.join(output.get('data',{}).get('text/html','') for cell in nb.cells for output in cell.get('outputs',[]))
-        self.assertIn('Six largest training changes', html)
+        extremes = json.loads((charts / 'largest_training_changes.json').read_text())
+        self.assertEqual(len(extremes['data']), 6)
+        self.assertTrue(all(t['type'] == 'scatter' and len(t['y']) == 2 for t in extremes['data']))
         self.assertIn('What do the five training inputs look like?', html)
         self.assertNotIn('214,425.0000', html)
 
@@ -209,7 +211,9 @@ class ExperimentTests(unittest.TestCase):
         source='\n'.join(cell.source for cell in nb.cells)
         self.assertIn('timesfm_comparison',source)
         self.assertIn('The RMSE improvement changes large-error scoring',source)
-        self.assertIn('Would anomaly detection give us a better review list?',source)
+        anomaly_lesson = next(c.source for c in nb.cells if c.cell_type == 'markdown' and c.source.startswith('## 13 '))
+        self.assertIn('anomaly', anomaly_lesson.lower())
+        self.assertRegex(anomaly_lesson, r'(?is)(still needs evaluation|has not (measured|tested))')
         self.assertIn('A future outcome must never determine who gets scored today',source)
         self.assertNotIn('TimesFM,', (out/'historical_scores.csv').read_text())
 

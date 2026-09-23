@@ -40,6 +40,6 @@ The steep decline in the single-bank chart extends into 2023–2026. Those obser
 
 The full-window seed-42 MLP reproduces the original MAE 3.6273179778953386 and RMSE 6.429240270152202. Evaluation row keys and actual growth are asserted equal to the saved original predictions. Split separation and original row counts are checked. The three full-window neural-network fits and six shorter-window fits completed.
 
-The existing data-preparation and model routines are reused from build_masterclass.py. The runner preserves scalar targets as (batch, 1) to handle a final training batch containing one observation; this fixes a Keras shape error without changing targets or the architecture. The original scores reproduce exactly after this adjustment.
+The data-preparation and model routines are imported normally from deposit_experiment.py and embedded as visible code in both notebooks. The runner preserves scalar targets as (batch, 1) to handle a final training batch containing one observation; this fixes a Keras shape error without changing targets or the architecture. The original scores reproduce exactly after this adjustment.
 
 Run from the project root: `.venv/bin/python experiments/training_window_sensitivity/run.py`. The plan records source-data SHA-256 and experiment settings; scores.csv records every model/window/seed; predictions.csv saves every neural-network prediction. Core notebook files and their result files are not overwritten.

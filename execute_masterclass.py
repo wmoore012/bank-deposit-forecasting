@@ -1,6 +1,7 @@
 """Execute either generated notebook using this interpreter; remove CDN dependencies."""
 from pathlib import Path
-import re, sys
+import sys
+from package_project import offline_html
 import nbformat
 from nbclient import NotebookClient
 from jupyter_client import KernelManager
@@ -18,6 +19,6 @@ for cell in nb.cells:
     for output in cell.get('outputs',[]):
         data=output.get('data',{})
         if 'text/html' in data:
-            data['text/html']=re.sub(r'<script[^>]+src="https://cdn.plot.ly/[^"<>]+"[^>]*></script>','',data['text/html'])
+            data['text/html']=offline_html(data['text/html'])
 nbformat.validate(nb);nbformat.write(nb,path)
 print('Saved successfully executed notebook:',path,flush=True)

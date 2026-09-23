@@ -30,6 +30,7 @@ A reproducible research project testing whether machine learning improves next-q
 
 ```sh
 uv sync --python 3.12 --locked
+.venv/bin/python build_masterclass.py
 .venv/bin/python execute_masterclass.py
 .venv/bin/python execute_masterclass.py FDIC_Deep_Learning_Submission.ipynb
 .venv/bin/python -m unittest discover -s tests -v
@@ -52,7 +53,7 @@ allow interactive JavaScript. The HTML preview provides a separate reading surfa
 - `growth_outputs/masterclass/` and `growth_outputs/submission/`: frozen plan,
   predictions, scores, source fingerprints, coverage, and decision evidence.
 - `sources/README.md`: primary sources and the historical comparability decision.
-- `notebooks/source/`: visible experiment sources and scratch/takeover notes.
+- `notebooks/source/`: visible experiment and teaching sources.
 
 The 2010–2024 file is audited but not used directly for primary training: 5,738
 early form-100 reports cross the 2012 TFR-to-Call-Report transition without a
@@ -131,3 +132,73 @@ numbered portrait PNGs, one matching PDF, and a source manifest. Shared teaching
 prose lives in `notebook_lessons.py` and `concrete_teaching.py`; experiment sources
 under `notebooks/source/` are copied into visible notebook cells. The builder uses
 Ruff for formatting when it is available and preserves runnable Python otherwise.
+
+## Shared code and the shorter-window experiment
+
+`deposit_experiment.py` contains the ordinary importable data, split, preprocessing,
+model, and scoring functions. The builder embeds those same function definitions
+as visible notebook code. No experiment executes Python extracted from prose strings.
+
+Both editions include the shorter-window comparison after the deposit-size comparison.
+It holds 2023 validation and the same 13,532 observed 2024 evaluation rows fixed.
+The windows begin in 2013, 2020, and 2021 and all end in September 2022.
+Three neural-network seeds and Ridge produced higher MAE with both shorter windows.
+This follow-up was developed after inspecting 2024; it does not test 2026 conditions.
+
+To reproduce it separately, without regenerating the notebooks:
+
+```sh
+.venv/bin/python experiments/training_window_sensitivity/run.py
+# Optional: keep a verification run separate from saved results.
+.venv/bin/python experiments/training_window_sensitivity/run.py --output /tmp/window-check
+```
+
+The existing evaluation has 13,618 input-eligible bank-quarters. Of these,
+30 in March, 22 in June, and 34 in September lack a later report in the snapshot.
+The scores and historical review lists describe the remaining 13,532 observed
+outcomes. The coverage audit retains those 86 unresolved cases. Their absence
+alone does not establish merger, failure, or distress. A deployed review list
+could contain unresolved cases; the current precision does not measure that list.
+
+## Rebuilding the optional foundation-model results
+
+Normal notebook execution reads the saved predictions and needs no model download.
+Regenerating those optional results is a separate, network-using workflow. The
+recorded TimesFM backend is MLX on Apple Silicon:
+
+```sh
+uv run python benchmark_timesfm.py --revision 43046b85ec22d584a13f8098c2ed39c889e129c2
+uv run python prepare_finetune_data.py
+uv run python finetune_foundation.py chronos
+uv run python finetune_foundation.py timesfm
+```
+
+The adapted backbones remain frozen; 2023 validation selects the saved forecast-head
+checkpoint. See the source provenance and saved selection metadata for the exact
+checkpoint and usage terms. Normal reproduction does not retrain these extensions.
+
+## Sharing the project
+
+Run `package_project.py` only after both notebooks execute successfully. It refuses
+unexecuted or error-bearing notebooks. The packages include the shared module,
+source data, reproducible experiments, saved results, and their reader-facing notes.
+Internal editing notes, personal files, local archives, and browser QA are excluded.
+The complete original experiment remains available because the notebooks use its evidence.
+
+The current edited carousel is under `communications/simple-models-fight-back/`.
+Older portrait exports are archived locally; `export_story.py` remains an optional
+portrait-export workflow and does not rebuild the edited landscape carousel.
+
+## Reproduced core models
+
+`freeze_forecasts.py` verifies the original Ridge and seed-42 MLP, saves their
+fitted preprocessing and models, reloads them, and scores all 13,618 input-eligible
+2024 rows. Run it with `.venv/bin/python freeze_forecasts.py`. The manifest in
+`growth_outputs/frozen_forecasts/` records numerical differences, exact original
+list membership, row order, environment, and hashes. These are verified
+reproductions; historical weight identity is unknown. Extended predictions stay
+separate from the original observed-outcome predictions.
+
+Build the offline HTML and ZIP deliverables after execution and tests:
+` .venv/bin/python package_project.py`. Both bundles contain both executed editions,
+the shared module, all three training-window seeds, and the frozen-model receipts.

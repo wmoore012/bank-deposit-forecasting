@@ -1,0 +1,76 @@
+{
+  "status": "Verified reproduction; historical weight identity is unknown.",
+  "features": [
+    "log_deposits",
+    "cash_ratio",
+    "loan_ratio",
+    "equity_ratio",
+    "prior_growth"
+  ],
+  "seed": 42,
+  "ridge_alpha": 100.0,
+  "settings": {
+    "ridge_alphas": [
+      0.01,
+      0.1,
+      1,
+      10,
+      100
+    ],
+    "architecture": [
+      5,
+      32,
+      16,
+      1
+    ],
+    "batch_size": 512,
+    "epochs_max": 200,
+    "patience": 10,
+    "adam_learning_rate": 0.001
+  },
+  "best_epoch": 10,
+  "epochs": 20,
+  "verification": {
+    "Ridge": {
+      "max_prediction_difference": 2.9879379248587412e-09,
+      "metrics": {
+        "MAE (pp)": 3.6410362808759604,
+        "RMSE (pp)": 6.512193824463368
+      },
+      "original_list_membership_identical": true,
+      "reload_max_difference": 0.0
+    },
+    "MLP": {
+      "max_prediction_difference": 2.649078367777946e-08,
+      "metrics": {
+        "MAE (pp)": 3.627317977895338,
+        "RMSE (pp)": 6.429240270152202
+      },
+      "original_list_membership_identical": true,
+      "reload_max_difference": 0.0
+    }
+  },
+  "expanded_rows": 13618,
+  "versions": {
+    "tensorflow": "2.18.1",
+    "numpy": "2.0.2",
+    "pandas": "3.0.5",
+    "scikit-learn": "1.9.0",
+    "joblib": "1.6.0"
+  },
+  "source_hashes": {
+    "data/fdic_financials_2013_2024.csv": "ed8b1a663c1a9c417a71069f7c3a947ca41e670f2123d0c54ef868443ce3b0d8",
+    "data/fdic_reporting_2010_2024.csv": "4fd21eac7a0b728d2ca26a49e3e74793701fc6fff7593ba6b8ecdc31d840e673",
+    "growth_outputs/masterclass/predictions.csv": "0db68ea2df2fd3c5ea238a3b175c8d10a161e9a5f88a381d7293280c4dcbb2c2",
+    "deposit_experiment.py": "de5a898f08cc2b0569173c85398be89221489508140591e8a5b89f636312dcf6",
+    "freeze_forecasts.py": "489c5381f21229f29e55547816aba6739f11b212c0a975d216cdd7d37e72010b",
+    "uv.lock": "28c8f3952d36ed5bce15933a86aca447738fa93a6498178446ae7c4642299ba5"
+  },
+  "artifact_hashes": {
+    "expanded_predictions.csv": "4d0e6e594731f29d6f0e2d36ef47501954fb140f2d389c7bd94b1c009ab71c9b",
+    "mlp.keras": "3a44af9766feefa288d24a5292aa1a8b87f5199260f95ecf6a7633bd1bad9ba3",
+    "ridge_preprocessing.joblib": "33191520f142dc541790c9ad5429fc4884b7ab7a7987f5129250b9959f0a17f0",
+    "training_rows.csv": "4baf6f4a197673ef78a936009afda55524d798d16213a351e38ff04bef935e85",
+    "validation_rows.csv": "eade63357ad7d65ab3cdff541ab82293e9acfd32601d4efc08763c727e19fc3e"
+  }
+}

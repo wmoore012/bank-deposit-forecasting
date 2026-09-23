@@ -3544,7 +3544,7 @@ dependencies = [
     { name = "plotly" },
 ]
 wheels = [
-    { filename = "wm_notecards-0.1.0-py3-none-any.whl", hash = "sha256:8376f88c2d12a2c9f05ed5ed087c1db68faaa80abcda15c6361932f62c1f6eab" },
+    { filename = "wm_notecards-0.1.0-py3-none-any.whl", hash = "sha256:f90496c4482f2a995aac9789367f2cc4e734a03e0407cb9bf413076b7f66f848" },
 ]
 
 [package.metadata]

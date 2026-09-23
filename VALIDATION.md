@@ -1,5 +1,47 @@
 # Validation
 
+## Current Study 1 release, September 22, 2026
+
+Both notebook editions executed fully in separate Python 3.12 CPU kernels. A fresh
+extracted ZIP installed from the locked environment without network access and
+executed both editions. The original predictions, MAE/RMSE, ranking, and split
+receipts agree with the checkpoint within rtol 1e-6 / atol 1e-8. All original
+review-list memberships are preserved. The independent extracted training-window
+runner reproduced all nine seed/window prediction sets and all twelve score rows.
+
+The shared module supplies ordinary importable routines and the builder keeps
+those definitions visible in notebook cells. The training-window runner no longer
+extracts or rewrites code. Both editions include the completed shorter-window
+comparison after the deposit-size comparison. Singleton training batches retain
+an explicit one-column target shape.
+
+Scoring eligibility is independent of future outcome availability: 13,618 current
+input-eligible 2024 rows, 13,532 observed outcomes, and 86 unresolved outcomes
+(30, 22, and 34 by quarter). The unresolved rows remain in coverage receipts;
+missing balances are not set to zero or assigned an economic cause.
+
+`growth_outputs/frozen_forecasts/manifest.json` records verified reproductions of
+the original Ridge and seed-42 MLP. Maximum absolute growth-prediction differences
+from saved CSVs were 2.988e-9 and 2.649e-8, respectively. Saved preprocessing and
+models reload with zero prediction change. Expanded predictions use those loaded
+objects. Historical weight identity cannot be established from saved predictions.
+
+Browser verification observed 50 Masterclass and 41 Submission plots with no
+page errors or failed requests. The coverage-axis overlap and target-panel label
+overlap were corrected; dollars, percentage growth, and log growth have separate
+axes. Narrow-width prose was visually readable with contained code scrolling.
+Saved HTML embeds Plotly and removes redundant external script loaders, including
+the module-import loader. VS Code and Colab execution remain untested.
+
+The current LinkedIn PDF has 11 landscape pages. Its text and rendered pages were
+reviewed against the verified results; earlier dated records below describe older
+exports. Resume bullets were updated in ignored private storage. ZIPs use an
+explicit allowlist and exclude personal notes, local archives, and browser evidence.
+Git history is preserved, including older editorial/methodological drafts that were
+subsequently removed from the current public tree.
+
+## Earlier validation records
+
 Both generated notebooks executed fully in separate fresh Python 3.12 CPU kernels.
 Their historical predictions agree within 1e-6 relative tolerance. Six automated
 checks cover target arithmetic, consecutive quarters, chronological boundaries,

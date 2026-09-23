@@ -1,25 +1,97 @@
-"""Export readable HTML and reproducible ZIPs from an explicit allowlist."""
+"""Build shareable notebook bundles from reviewed, explicit file selections."""
+import argparse
+import re
 from pathlib import Path
-import re, zipfile
+import zipfile
 import nbformat
 from nbconvert import HTMLExporter
-ROOT=Path(__file__).resolve().parent
-COMMON=['VALIDATION.md','README.md','MASTERCLASS_README.md','PROFESSOR_README.md','pyproject.toml','uv.lock',
-        'build_masterclass.py','notebook_lessons.py','concrete_teaching.py','export_story.py','benchmark_timesfm.py','benchmark_chronos.py','finetune_foundation.py','prepare_finetune_data.py','build_professor_submission.py','execute_masterclass.py',
-        'download_fdic.py','download_supplement.py','package_project.py','Assign1.ipynb']
-notebooks=[ROOT/f'FDIC_Deep_Learning_{edition}.ipynb' for edition in ['Masterclass','Submission']]
-for notebook in notebooks:
-    body,_=HTMLExporter().from_notebook_node(nbformat.read(notebook,as_version=4))
-    # Equations already render inside WM cards; Plotly is embedded locally.
-    body=re.sub(r'<script[^>]+src="https?://[^"<>]+"[^>]*>\s*</script>','',body)
-    notebook.with_suffix('.html').write_text(body)
-paths=[ROOT/p for p in COMMON]+notebooks+[p.with_suffix('.html') for p in notebooks]
-for folder in ['data','vendor','sources','experiments/experiment_0','notebooks/source','tests','growth_outputs']:
-    paths.extend(p for p in (ROOT/folder).rglob('*') if p.is_file()
-        and '__pycache__' not in p.parts and p.name!='.DS_Store' and 'charts' not in p.parts)
-for edition in ['Masterclass','Submission']:
-    name=f'FDIC_Deep_Learning_{edition}'
-    with zipfile.ZipFile(ROOT/f'{name}.zip','w',zipfile.ZIP_DEFLATED) as z:
-        for p in paths:z.write(p,Path(name)/p.relative_to(ROOT))
-        assert not any('.webapp-tester' in p or '.venv' in p for p in z.namelist())
-    print(name,'HTML and ZIP built')
+
+ROOT = Path(__file__).resolve().parent
+COMMON = [
+    'README.md', 'VALIDATION.md', 'MASTERCLASS_README.md', 'PROFESSOR_README.md',
+    'pyproject.toml', 'uv.lock', 'deposit_experiment.py', 'freeze_forecasts.py', 'build_masterclass.py',
+    'notebook_lessons.py', 'concrete_teaching.py', 'export_story.py',
+    'benchmark_timesfm.py', 'benchmark_chronos.py', 'finetune_foundation.py',
+    'prepare_finetune_data.py', 'build_professor_submission.py', 'execute_masterclass.py',
+    'download_fdic.py', 'download_supplement.py', 'package_project.py', 'Assign1.ipynb',
+    'communications/simple-models-fight-back/README.md',
+    'communications/simple-models-fight-back/manifest.json',
+    'communications/simple-models-fight-back/prospective_forecast_2026-09-22.json',
+    'communications/simple-models-fight-back/ridge_review_queue_2024-03-31.csv',
+    'communications/simple-models-fight-back/training_histogram.json',
+    'communications/simple-models-fight-back/young_americans_deposits_2025_2026.json',
+    'communications/simple-models-fight-back/young_americans_deposits_full_history.json',
+    'communications/simple-models-fight-back/simple_models_fight_back_data_science_story_v5.html',
+    'communications/simple-models-fight-back/simple_models_fight_back_data_science_story_v5.pdf',
+]
+# Patterns are intentionally narrow: authoring notes, archives and QA are not inputs.
+PATTERNS = [
+    'data/*.csv', 'vendor/*.whl', 'vendor/*.patch', 'sources/*.md',
+    'sources/*.json', 'sources/*.csv', 'sources/*.yaml',
+    'notebooks/source/*.py', 'tests/test_*.py', 'growth_outputs/*.csv',
+    'growth_outputs/*.json', 'growth_outputs/frozen_forecasts/*.json',
+    'growth_outputs/frozen_forecasts/*.csv', 'growth_outputs/frozen_forecasts/*.joblib',
+    'growth_outputs/frozen_forecasts/*.keras', 'growth_outputs/masterclass/*.csv',
+    'growth_outputs/masterclass/*.json', 'growth_outputs/submission/*.csv',
+    'growth_outputs/submission/*.json', 'experiments/experiment_0/*.py',
+    'experiments/experiment_0/*.ipynb', 'experiments/experiment_0/README.md',
+    'experiments/experiment_0/outputs/*.csv', 'experiments/experiment_0/outputs/*.json',
+    'experiments/training_window_sensitivity/run.py',
+    'experiments/training_window_sensitivity/REPORT.md',
+    'experiments/training_window_sensitivity/*.csv',
+    'experiments/training_window_sensitivity/*.json',
+]
+
+
+def offline_html(html):
+    """Keep embedded libraries and remove redundant network script loaders."""
+    html = re.sub(r'<script[^>]+src=[\"\']https?://[^\"\'<>]+[\"\'][^>]*>\s*</script>', '', html)
+    return re.sub(r'<script[^>]*>\s*import\s+[\"\']https://cdn\.plot\.ly/[^\"\']+[\"\'];?\s*</script>', '', html)
+
+
+def selected_files(root):
+    paths = {root / name for name in COMMON}
+    for pattern in PATTERNS:
+        matches = list(root.glob(pattern))
+        if not matches:
+            raise FileNotFoundError(f'Package pattern matched no files: {pattern}')
+        paths.update(matches)
+    for edition in ['Masterclass', 'Submission']:
+        paths.add(root / f'FDIC_Deep_Learning_{edition}.ipynb')
+    for path in paths:
+        if not path.is_file():
+            raise FileNotFoundError(path)
+    return sorted(paths)
+
+
+def build_packages(root, output):
+    output.mkdir(parents=True, exist_ok=True)
+    paths = selected_files(root)
+    rendered = {}
+    for edition in ['Masterclass', 'Submission']:
+        notebook = root / f'FDIC_Deep_Learning_{edition}.ipynb'
+        nb = nbformat.read(notebook, as_version=4)
+        code = [c for c in nb.cells if c.cell_type == 'code']
+        if any(c.execution_count is None or any(o.output_type == 'error' for o in c.outputs) for c in code):
+            raise ValueError(f'Execute all cells successfully before packaging: {notebook.name}')
+        body, _ = HTMLExporter().from_notebook_node(nb)
+        body = offline_html(body)
+        html = notebook.with_suffix('.html').name
+        (output / html).write_text(body)
+        rendered[html] = body
+    for edition in ['Masterclass', 'Submission']:
+        name = f'FDIC_Deep_Learning_{edition}'
+        with zipfile.ZipFile(output / f'{name}.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+            for path in paths:
+                archive.write(path, Path(name) / path.relative_to(root))
+            for html, body in rendered.items():
+                archive.writestr(str(Path(name) / html), body)
+            assert not any(any(part in n for part in ('.webapp-tester', '.internal', '.local-archive', 'career/', '.venv')) for n in archive.namelist())
+        print(name, 'HTML and ZIP built')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, default=ROOT)
+    args = parser.parse_args()
+    build_packages(ROOT, args.output)

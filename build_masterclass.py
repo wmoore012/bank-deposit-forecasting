@@ -3,6 +3,9 @@ from pathlib import Path
 from textwrap import dedent
 import hashlib
 import ast
+import inspect
+import re
+import deposit_experiment as core
 import shutil
 import subprocess
 from notebook_lessons import OPENING, teach_story
@@ -365,17 +368,10 @@ def takeaway(title, body, metric=None):
     takeaway_card(title=title, body=body, metric=metric, theme=theme)
 
 
-def scores(actual, predicted):
-    """Report ordinary-growth errors in percentage points."""
-    return {
-        'MAE (pp)': 100 * mean_absolute_error(actual, predicted),
-        'RMSE (pp)': 100 * np.sqrt(mean_squared_error(actual, predicted)),
-    }
+# SHARED ROUTINE: scores
 
 
-def log_scores(y_log, pred_log):
-    """Score log-growth forecasts in ordinary percentage-point units."""
-    return scores(np.expm1(y_log), np.expm1(pred_log))
+# SHARED ROUTINE: log_scores
 
 
 # %% NOTEBOOK CELL
@@ -971,90 +967,16 @@ question_card(
 )
 
 
-def add_adjacent_reports(frame):
-    """Attach prior and next-quarter values within each FDIC certificate."""
-    result = frame.sort_values(['CERT', 'REPDTE']).copy()
-    result['date'] = pd.to_datetime(result['REPDTE'].astype(str))
-    result['quarter_number'] = result['date'].dt.to_period('Q').astype('int64')
-
-    grouped = result.groupby('CERT', sort=False)
-    shifts = {
-        'prior_deposits': ('DEPDOM', 1),
-        'next_deposits': ('DEPDOM', -1),
-        'prior_quarter': ('quarter_number', 1),
-        'next_quarter': ('quarter_number', -1),
-        'target_date': ('date', -1),
-        'next_name': ('NAME', -1),
-        'next_event': ('ACTEVT', -1),
-    }
-
-    for new_column, (source_column, periods) in shifts.items():
-        result[new_column] = grouped[source_column].shift(periods)
-
-    return result
+# SHARED ROUTINE: add_adjacent_reports
 
 
-def label_next_report(frame):
-    """Separate ordinary missing outcomes from the end of the dataset."""
-    last_quarter = frame['quarter_number'].max()
-
-    return np.select(
-        [
-            frame['quarter_number'].eq(last_quarter),
-            frame['next_quarter'].isna(),
-            frame['next_quarter'].sub(frame['quarter_number']).ne(1),
-        ],
-        [
-            'Dataset end',
-            'Institution stops before dataset end',
-            'Gap before later report',
-        ],
-        default='Adjacent next report',
-    )
+# SHARED ROUTINE: label_next_report
 
 
-def apply_rules(frame, rules):
-    """Apply eligibility rules one at a time and record their effect."""
-    keep = pd.Series(True, index=frame.index)
-    ledger = [
-        {
-            'Rule': 'All source rows',
-            'Remaining': len(frame),
-            'Removed': 0,
-        }
-    ]
-
-    for rule_name, rule_mask in rules.items():
-        rows_before = int(keep.sum())
-        keep &= rule_mask
-        rows_after = int(keep.sum())
-
-        ledger.append(
-            {
-                'Rule': rule_name,
-                'Remaining': rows_after,
-                'Removed': rows_before - rows_after,
-            }
-        )
-
-    return frame.loc[keep].copy(), pd.DataFrame(ledger)
+# SHARED ROUTINE: apply_rules
 
 
-def add_model_fields(frame):
-    """Create the three candidate targets and five current-quarter inputs."""
-    result = frame.copy()
-
-    result['growth'] = result['next_deposits'].div(result['DEPDOM']).sub(1)
-    result['log_growth'] = np.log(result['next_deposits'].div(result['DEPDOM']))
-    result['dollar_change_m'] = result['next_deposits'].sub(result['DEPDOM']).div(1000)
-
-    result['log_deposits'] = np.log(result['DEPDOM'])
-    result['cash_ratio'] = result['CHBAL'].div(result['ASSET'])
-    result['loan_ratio'] = result['LNLSNET'].div(result['ASSET'])
-    result['equity_ratio'] = result['EQ'].div(result['ASSET'])
-    result['prior_growth'] = np.log(result['DEPDOM'].div(result['prior_deposits']))
-
-    return result
+# SHARED ROUTINE: add_model_fields
 
 
 # %% NOTEBOOK CELL
@@ -1146,6 +1068,44 @@ conditions = {
 rows, eligibility_ledger = apply_rules(panel, conditions)
 rows = add_model_fields(rows)
 
+# %% NOTEBOOK CELL
+# SHARED ROUTINE: scoring_eligibility
+
+# SHARED ROUTINE: outcome_status
+
+# SHARED ROUTINE: outcome_coverage
+
+# SHARED ROUTINE: chronological_splits
+
+# Input-time eligibility must not depend on whether next quarter is observed.
+scoring_rows = add_model_fields(panel.loc[scoring_eligibility(panel)].copy())
+scoring_rows['Outcome status'] = outcome_status(scoring_rows)
+evaluation_inputs = scoring_rows.loc[
+    scoring_rows['date'].between('2024-01-01', '2024-09-30')
+].copy()
+coverage_receipt = outcome_coverage(evaluation_inputs)
+coverage_receipt.to_csv(OUT / 'evaluation_coverage.csv', index=False)
+evaluation_inputs[['CERT', 'NAME', 'date', 'Outcome status']].to_csv(
+    OUT / 'evaluation_input_population.csv', index=False)
+assert coverage_receipt['Eligible'].sum() == 13618
+assert coverage_receipt['Observed'].sum() == 13532
+assert coverage_receipt['Unresolved'].tolist() == [30, 22, 34]
+
+# EXEMPLAR: missingness-evidence
+fig = px.bar(coverage_receipt, x='date', y='Unresolved', text='Unresolved')
+fig.update_traces(marker_color='#C59B32', textposition='outside')
+fig.update_xaxes(title='2024 predictor quarter', tickvals=coverage_receipt['date'])
+fig.update_yaxes(title='Unresolved reports', range=[0, 40])
+chart(fig, 'evaluation_coverage', '86 eligible reports have no later report in this snapshot',
+      '13,618 could receive a forecast; 13,532 have outcomes we can score.', height=390)
+table(coverage_receipt, 'Who could receive a forecast, and who could be evaluated?')
+# EXEMPLAR: bounded-takeaway
+takeaway('A missing next report stays unknown',
+         'The 30, 22, and 34 unresolved cases remain in this coverage audit. '
+         'The historical scores and review lists use observed outcomes only. '
+         'These gaps do not tell us whether a bank merged, closed, or failed.', '86 unresolved')
+
+
 eligibility_ledger = ordered_rows(
     eligibility_ledger,
     ['Rule'],
@@ -1205,12 +1165,8 @@ def describe_split(name, frame):
 
 
 # The one-quarter gaps keep each split's outcomes behind the next split's inputs.
-train = rows.loc[rows['date'].le('2022-09-30')].copy()
-valid = rows.loc[
-    rows['date'].between('2023-01-01', '2023-09-30')
-].copy()
+train, valid, holdout = chronological_splits(rows)
 holdout_mask = rows['date'].between('2024-01-01', '2024-09-30')
-holdout = rows.loc[holdout_mask].copy()
 
 assert train['target_date'].max() < valid['date'].min()
 assert valid['target_date'].max() < holdout['date'].min()
@@ -1472,42 +1428,26 @@ target_summary = ordered_rows(
         ],
     },
 )
-# A colored range chart gives the reader the distribution before its exact receipt.
-range_colors = {
-    'Dollar change (USD million)': '#6E8BA5',
-    'Signed growth (%)': '#D17A3A',
-    'Log growth': '#0B7A75',
-}
-fig = go.Figure()
-for _, row in target_summary.iterrows():
-    target = row['Target']
+# Different units need separate axes, while each panel retains its exact values.
+fig = make_subplots(rows=3, cols=1, shared_xaxes=False, vertical_spacing=0.20)
+range_colors = ['#6E8BA5', '#D17A3A', '#0B7A75']
+for row_number, (_, row) in enumerate(target_summary.iterrows(), start=1):
     fig.add_trace(go.Scatter(
-        x=[row['1st percentile'], row['99th percentile']],
-        y=[target, target],
-        mode='lines',
-        line=dict(color=range_colors[target], width=16),
-        hovertemplate=(
-            f'{target}<br>Middle 98% from %{{x[0]:,.3f}} to '
-            f'%{{x[1]:,.3f}}<extra></extra>'
-        ),
-        showlegend=False,
-    ))
+        x=[row['1st percentile'], row['99th percentile']], y=[0, 0],
+        mode='lines', line=dict(color=range_colors[row_number - 1], width=14),
+        hovertemplate='Value: %{x:,.4f}<extra></extra>', showlegend=False,
+    ), row=row_number, col=1)
     fig.add_trace(go.Scatter(
-        x=[row['Median']], y=[target], mode='markers',
-        marker=dict(color='#172F3E', size=13, symbol='diamond'),
-        hovertemplate=f'{target}<br>Median: %{{x:,.3f}}<extra></extra>',
-        showlegend=False,
-    ))
-fig.update_xaxes(title='Each target uses its own units; the colored band is the middle 98%, the diamond is the median')
-fig.update_yaxes(title='')
-fig.update_layout(margin=dict(l=20, r=30, t=20, b=70))
-chart(
-    fig,
-    'target_ranges',
-    'How much do the candidate targets spread?',
-    'The log target keeps the same rows but puts unusually large proportional jumps on a learnable scale.',
-    height=430,
-)
+        x=[row['Median']], y=[0], mode='markers',
+        marker=dict(color='#172F3E', size=12, symbol='diamond'),
+        hovertemplate='Median: %{x:,.4f}<extra></extra>', showlegend=False,
+    ), row=row_number, col=1)
+    fig.update_xaxes(title=row['Target'], row=row_number, col=1)
+    fig.update_yaxes(visible=False, range=[-1, 1], row=row_number, col=1)
+fig.update_layout(margin=dict(l=35, r=35, t=50, b=50))
+chart(fig, 'target_ranges', 'How much do the candidate targets spread?',
+      'Each panel has its own units and scale. Band: middle 98%. Diamond: median. Compare numbers within each panel.',
+      height=650)
 
 table(
     target_summary[['Target', '1st percentile', 'Median', '99th percentile', 'Maximum']],
@@ -1995,22 +1935,10 @@ chart(
 
 # %% NOTEBOOK CELL
 # Learn missing-value replacements and scales from training rows only.
-def fit_preprocessor(training_frame):
-    """Fit median imputation and standardization on training rows only."""
-    fitted_imputer = SimpleImputer(strategy='median')
-    fitted_scaler = StandardScaler()
-
-    imputed = fitted_imputer.fit_transform(training_frame[FEATURES])
-    fitted_scaler.fit(imputed)
-
-    return fitted_imputer, fitted_scaler
+# SHARED ROUTINE: fit_preprocessor
 
 
-def transform_features(frame, fitted_imputer, fitted_scaler):
-    """Apply the frozen preprocessing steps to one time split."""
-    imputed = fitted_imputer.transform(frame[FEATURES])
-    transformed = fitted_scaler.transform(imputed)
-    return transformed.astype('float32')
+# SHARED ROUTINE: transform_features
 
 
 imputer, scaler = fit_preprocessor(train)
@@ -2072,26 +2000,7 @@ settings = {
 
 # %% NOTEBOOK CELL
 # Tune the linear comparison on validation data.
-def choose_ridge(X_fit, y_fit, X_check, y_check, alphas):
-    """Select Ridge strength using validation MAE in percentage points."""
-    rows = []
-    models = {}
-
-    for alpha in alphas:
-        candidate = Ridge(alpha=alpha).fit(X_fit, y_fit)
-        models[alpha] = candidate
-        rows.append(
-            {
-                'Alpha': alpha,
-                **log_scores(y_check, candidate.predict(X_check)),
-            }
-        )
-
-    results = pd.DataFrame(rows)
-    chosen_alpha = float(
-        results.sort_values(['MAE (pp)', 'Alpha']).iloc[0]['Alpha']
-    )
-    return models[chosen_alpha], chosen_alpha, results
+# SHARED ROUTINE: choose_ridge
 
 
 ridge, best_alpha, ridge_tuning = choose_ridge(
@@ -2106,74 +2015,18 @@ ridge, best_alpha, ridge_tuning = choose_ridge(
 # %% NOTEBOOK CELL
 # Build one fixed neural-network architecture, then let early stopping choose
 # how long it trains.
-def build_network(seed):
-    """Create the fixed 5 → 32 → 16 → 1 neural network."""
-    tf.keras.utils.set_random_seed(seed)
-
-    network = tf.keras.Sequential(
-        [
-            tf.keras.Input(shape=(5,)),
-            tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dense(16, activation='relu'),
-            tf.keras.layers.Dense(1),
-        ]
-    )
-    network.compile(
-        optimizer=tf.keras.optimizers.Adam(0.001),
-        loss='mse',
-    )
-
-    assert network.count_params() == 737
-    return network
+# SHARED ROUTINE: build_network
 
 
-def fit_network(seed):
-    """Train one fixed network and restore its best validation weights."""
-    network = build_network(seed)
-
-    options = tf.data.Options()
-    options.threading.private_threadpool_size = 2
-
-    training_data = (
-        tf.data.Dataset.from_tensor_slices((X_train, y_train))
-        .shuffle(len(y_train), seed=seed)
-        .batch(512)
-        .with_options(options)
-    )
-    validation_data = (
-        tf.data.Dataset.from_tensor_slices((X_valid, y_valid))
-        .batch(512)
-        .with_options(options)
-    )
-
-    early_stopping = tf.keras.callbacks.EarlyStopping(
-        monitor='val_loss',
-        patience=10,
-        restore_best_weights=True,
-    )
-
-    started = time.perf_counter()
-    fitted = network.fit(
-        training_data,
-        validation_data=validation_data,
-        epochs=200,
-        callbacks=[early_stopping],
-        verbose=0,
-        shuffle=False,
-    )
-    elapsed = time.perf_counter() - started
-
-    return network, fitted.history, elapsed
+# SHARED ROUTINE: fit_network
 
 
-def predict_log_growth(model, features):
-    """Return a flat NumPy array from a Keras model."""
-    return np.asarray(model(features, training=False)).ravel()
+# SHARED ROUTINE: predict_log_growth
 
 
 # %% NOTEBOOK CELL
 # Fit once with the frozen seed; validation decides when to stop.
-mlp, history, training_seconds = fit_network(SEED)
+mlp, history, training_seconds = fit_network(SEED, X_train, y_train, X_valid, y_valid)
 
 validation_predictions = {
     'Zero growth': np.zeros(len(valid)),
@@ -3115,7 +2968,7 @@ This sensitivity check measures optimization variation across three starting poi
 # Repeat the same training run with two other starting weights.
 seed_results=[{'Seed':42,**log_scores(y_valid, validation_predictions['MLP']),'Best epoch':frozen['mlp_best_epoch']}]
 for seed in [7,99]:
-    other,h,seconds=fit_network(seed)
+    other,h,seconds=fit_network(seed, X_train, y_train, X_valid, y_valid)
     seed_results.append({'Seed':seed,**log_scores(y_valid, predict_log_growth(other, X_valid)),'Best epoch':int(np.argmin(h['val_loss'])+1)})
 seed_results = ordered_rows(
     pd.DataFrame(seed_results),
@@ -3849,6 +3702,11 @@ def build():
     arrange_story()
     teach_story(sections)
     apply_concrete_teaching(sections)
+    for i, (title, prose, source, advanced) in enumerate(sections):
+        source = re.sub(r'^# SHARED ROUTINE: (\w+)$',
+                        lambda match: inspect.getsource(getattr(core, match.group(1))).strip(),
+                        source, flags=re.MULTILINE)
+        sections[i] = title, prose, source, advanced
     for edition,name in [('masterclass','FDIC_Deep_Learning_Masterclass.ipynb'),('submission','FDIC_Deep_Learning_Submission.ipynb')]:
         cells=[]
         for index,(title,prose,source,advanced) in enumerate(sections):
@@ -3874,6 +3732,8 @@ def build():
         for i,c in enumerate(cells):c.id=hashlib.sha256(f'{edition}:{i}:{c.source}'.encode()).hexdigest()[:12]
         nb=nbf.v4.new_notebook(cells=cells,metadata={'kernelspec':{'display_name':'DL Assignment (.venv)','language':'python','name':'python3'},'language_info':{'name':'python'}})
         nbf.validate(nb)
-        nbf.write(nb, ROOT / name)
+        temporary = ROOT / (name + ".tmp")
+        nbf.write(nb, temporary)
+        temporary.replace(ROOT / name)
         print(name,len(cells),'cells')
 if __name__=='__main__':build()

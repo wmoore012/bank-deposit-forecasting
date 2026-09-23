@@ -1,9 +1,9 @@
 # Simple Models Fight Back
 
 The current carousel is `simple_models_fight_back_data_science_story_v6.pdf`,
-a 13-page edition. It adds the approved anomaly-detection setup, explicit forecast and anomaly selection rules
+a 13-page edition. It adds the approved anomaly-detection setup, forecast and feature-space mini-plots with explicit selection rules
 at equal review capacity, and the measured outcome
-comparison after the deposit-size page. The calendar-rule ending is preserved. Page 11 now uses vertical stacks showing
+comparison after the deposit-size page. The calendar-rule ending is preserved. Page 11 now uses horizontal stacks showing
 full-window MAE plus the increase for each shorter window, using the saved
 training-window sensitivity scores.
 
@@ -39,3 +39,8 @@ the original population and equal-quarter averages used earlier in the story.
 The chart shows seed 42 for stochastic methods; the full experiment preserves
 all seeds and the deposit-size-removal comparison. Reused outcomes remain
 exploratory. The v6 additions were checked as rendered PDF pages, not as HTML.
+
+Pages 8 and 10 distinguish the review-list task (higher capture is better) from
+forecast error (lower MAE is better). The Study 2 chart includes both simple
+controls as well as all five learned methods. Mini-plots on page 9 are labeled
+schematic illustrations; they are not empirical projections or forecasts.

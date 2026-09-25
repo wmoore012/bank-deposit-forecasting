@@ -82,8 +82,13 @@ def main():
             model.eval()
             optimizer.zero_grad()
             pred = model(context=torch.tensor(batch)).quantile_preds[:, :, 0]
-            difference = torch.tensor(y)[:, None] - pred
             q = model.quantiles.detach()[None, :]
+            # WARNING: y[:, None] is intentional. A flat y would broadcast against
+            # (batch, quantiles) incorrectly or crash; this guard pins the shape.
+            assert pred.shape == (len(y), q.shape[1]), (
+                f'Expected (batch, quantiles), got {tuple(pred.shape)}'
+            )
+            difference = torch.tensor(y)[:, None] - pred
             loss = torch.maximum(q * difference, (q - 1) * difference).mean()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(head.parameters(), 1.)
@@ -135,8 +140,12 @@ def main():
 
         def loss_fn(network, batch, y):
             pred = network.decode(batch[:, None, :], horizon=1)[:, 0, 0, :]
-            difference = y[:, None] - pred
             q = mx.array(network.config.quantiles)[None, :]
+            # WARNING: y[:, None] is intentional; see the Chronos loss above.
+            assert pred.shape == (y.shape[0], q.shape[1]), (
+                f'Expected (batch, quantiles), got {tuple(pred.shape)}'
+            )
+            difference = y[:, None] - pred
             return mx.maximum(q * difference, (q - 1) * difference).mean()
 
         value_grad = nn.value_and_grad(model, loss_fn)
